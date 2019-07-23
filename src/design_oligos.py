@@ -1,8 +1,39 @@
 #!/usr/bin/env python3
 
+##################################################
+#
+#  --- Ribo-ODDR - Oligo Design for Depleting rRNAs ---
+#
+#  Version 0.1 (See the ChangeLog.md file for changes.)
+#
+#  Copyright 2019   Ferhat Alkan <f.alkan@nki.nl>
+#  (See the AUTHORS file for other contributors.)
+#
+#  This file is part of the Ribo-ODDR pipeline.
+#
+#  Ribo-ODDR is a free software: you can
+#  redistribute it and/or modify it under the terms of the
+#  GNU General Public License as published by the
+#  Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  Ribo-ODDR is distributed in the hope that it will
+#  be useful, but WITHOUT ANY WARRANTY; without even
+#  the implied warranty of MERCHANTABILITY or
+#  FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with the Ribo-ODDR Pipeline, see file LICENSE.
+#  If not, see <http://www.gnu.org/licenses/>.
+#################################################
+
 import sys, gzip, pysam, os, argparse, itertools, subprocess
 from Bio import SeqIO, Seq, SeqRecord
 from Bio.Alphabet import generic_dna, generic_rna
+
+__version__ = "0.1"
+__author__ = "Ferhat Alkan <f.alkan@nki.nl>"
 
 ## GLOBAL DECLARATIONS ##
 # intermediate files that should be cleared at the exit
