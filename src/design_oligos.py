@@ -3,10 +3,11 @@
 ##################################################
 #
 #  --- Ribo-ODDR - Oligo Design for Depleting rRNAs ---
-#
+#  ---      in Ribosome profiling experiments       ---
 #  Version 0.1 (See the ChangeLog.md file for changes.)
 #
 #  Copyright 2019   Ferhat Alkan <f.alkan@nki.nl>
+#                   William Faller <w.faller@nki.nl>
 #  (See the AUTHORS file for other contributors.)
 #
 #  This file is part of the Ribo-ODDR pipeline.
