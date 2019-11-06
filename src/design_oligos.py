@@ -327,16 +327,13 @@ def main():
             print("# RUNning off-targets")
             sub = subprocess.Popen(args.RIsearch_exe+' -q '+args.output+"/oligos.fa -t 1 -i "+args.OFFtargets+" -s "+str(round(0.75*min(oligo_range)))+" -e "+str(min(min_Emin*0.5, -25)),
                 shell=True, stdout=subprocess.PIPE).communicate()
-
-        t_c = 0
-        for oligo_id in oligos.keys():
-            if t_c%10 == 0:
-                sys.stdout.write(str(round((100.0*t_c)/len(oligos)))+" percent complete  \r")
-            t_c+=1
-
-            oligo = oligos[oligo_id]
-            with gzip.open("risearch_"+oligo_id+".out.gz") as self_int:
-                oligos[oligo_id].add_offs(self_int.readlines())
+            t_c = 0
+            for oligo_id in oligos.keys():
+                if t_c%10 == 0:
+                    sys.stdout.write(str(round((100.0*t_c)/len(oligos)))+" percent complete  \r")
+                t_c+=1
+                with gzip.open("risearch_"+oligo_id+".out.gz") as self_int:
+                    oligos[oligo_id].add_offs(self_int.readlines())
 
         # oligos bed
         with open(args.output+"/oligos.bed",'w') as out_f:
@@ -352,7 +349,7 @@ def main():
                             ';'.join(['ID='+oligo.id,'score='+str(oligo.score),'seq='+oligo.seq,
                             'gc_content='+str(round(oligo.GC,2)),'mfe='+str(oligo.MFE),'structure='+oligo.structure,
                             'bp_per='+str(round(oligo.BPper,2)),'eng_min='+str(round(oligo.Emin,1)),
-                            'no_of_OFFS='+"None" if args.no_OFF_search else str(len(oligo.offs))]+[(k+'='+str(v[0])+"_reads-"+str(v[1])+"_pc_rRNA_mapping-"+str(v[2])+'_pc_total') for k,v in oligo.dep_pot.items()])])+'\n')
+                            'no_of_OFFS='+("None" if args.no_OFF_search else str(len(oligo.offs)))]+[(k+'='+str(v[0])+"_reads-"+str(v[1])+"_pc_rRNA_mapping-"+str(v[2])+'_pc_total') for k,v in oligo.dep_pot.items()])])+'\n')
 
         # oligos off
         if args.no_OFF_search==False:

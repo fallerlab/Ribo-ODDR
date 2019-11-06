@@ -129,7 +129,6 @@ get_df_from_gff <- function(raw_df){
                     foldedStructure=raw_df$structure,
                     off=as.numeric(raw_df$no_of_OFFS),
                     target=raw_df$seqid, spos=as.numeric(raw_df$start), epos=as.numeric(raw_df$end))
-  
   samples <- colnames(raw_df)[18:dim(raw_df)[2]]
 
   reads <- NULL
