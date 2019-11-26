@@ -68,13 +68,13 @@ def get_parser():
     parser.add_argument('--RNAfold_exe', help='<Required> Path to RNAfold executable. (Default:RNAfold)', required=True)
     parser.add_argument('--RIsearch_exe', help='<Required> Path to RIsearch2 executable. (Default:risearch2.x)', required=True)
     parser.add_argument('--OFFtargets', help='<Required> Path to RIsearch2 suffix file for potential off-target search.', required=True)
-    design = parser.add_argument_group("Design-mode","Design new oligos for rRNA depletion based on given samples.")
+    design = parser.add_argument_group("Novel oligo design mode","Design new oligos for rRNA depletion based on given Ribo-seq data.")
     design.add_argument('-a','--alignments', nargs='+', help='<Required> Alignment files (Ribo-seq reads vs rRNAs). Each alignment file should be given as "label1:folder1 label2:folder2" or just as "label1 label2" with --prefix and --suffix.')
     design.add_argument('-pre','--prefix', help='Prefix for sample rRNA-alignment folder')
     design.add_argument('-suf','--suffix', help='Suffix for sample rRNA-alignment folder')
     design.add_argument('-l','--range', default='25-30', help='Length range of oligos given in "min:max" format. Default:"25-30"')
     design.add_argument('-f','--force_design', type=int, default=20, help='For every given rRNA, force designing given number of oligos at every length in the pre-given range. Default:"10"')
-    optimize = parser.add_argument_group("Optimize-mode","Optimize given oligos for depleting given rRNAs.")
+    optimize = parser.add_argument_group("Cross-species optimization mode","Optimize source oligos for depleting given rRNAs.")
     optimize.add_argument('-op','--oligos2optimize', help="Fasta file for oligos that you want to optimize. (Overrides the design mode)")
     advanced = parser.add_argument_group("Advanced","Advanced options.")
     advanced.add_argument('-pt','--rrna_perc_threshold', type=float, default=5.0, help="Filtering threshold (rRNA depletion percentage), applied within oligo score calculation. (default=5)")
@@ -159,9 +159,20 @@ def get_oligos_with_reads_start_end(all_reads_start_end, all_rRNA_read_count, al
                 deplete_potential_summary = {}
                 for sample in all_reads_start_end.keys():
                     dep_pot = 0
-                    for r in range(i-10, i+10): # Heuristic part
+                    # Heuristic part to compute deplete potential
+                    # Depleteable Reads must have at least min(10,l-int(l/3)) nt pairing with designed oligo
+                    # Depleteable Reads can have max(10,int(l/3)) unpaired nts with designed oligo
+                    max_allowed_unpair = max(10,int(l/3))
+                    min_aimed_pair = min(10,(l-int(l/3)))
+                    for r in range(i-max_allowed_unpair, i+l+1-min_aimed_pair):
                         if r>=0:
-                            dep_pot += sum(all_reads_start_end[sample][TX_id][r][r:])
+                            maxdist = len(all_reads_start_end[sample][TX_id][r])
+                            prior_unpaired = -min(r-i,0)
+                            if r < maxdist:
+                                pair_sp=max((r+min_aimed_pair),(i+min_aimed_pair))-1
+                                pair_ep=min((i+l+max_allowed_unpair-prior_unpaired),maxdist)
+                                if pair_ep>pair_sp:
+                                    dep_pot += sum(all_reads_start_end[sample][TX_id][r][pair_sp:pair_ep])
 
                     deplete_potential_summary[sample] = (dep_pot, round(100*dep_pot/all_rRNA_read_count[sample],2), round(100*dep_pot/all_total_read_count[sample],2))
 

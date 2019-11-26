@@ -3,7 +3,7 @@
 #
 #  --- Ribo-ODDR - Oligo Design for Depleting rRNAs ---
 #  ---      in Ribosome profiling experiments       ---
-#  Version 1.0 (See the ChangeLog.md file for changes.)
+#  Version 0.9 (See the ChangeLog.md file for changes.)
 #
 #  Copyright 2019   Ferhat Alkan <f.alkan@nki.nl>
 #                   William Faller <w.faller@nki.nl>
@@ -33,6 +33,40 @@ require(DT)
 require(rtracklayer)
 require(ggplot2)
 
+## Premade functions
+get_df_from_gff <- function(rawfile){
+  raw_df <- data.frame(rtracklayer::readGFF(rawfile))
+  tmp <- data.frame(oligoID=raw_df$ID, seq=raw_df$seq, size=nchar(raw_df$seq),
+                    dep.score=round(as.numeric(raw_df$score.1),2), 
+                    GC=round(as.numeric(raw_df$gc_content),2), 
+                    energy=round(as.numeric(raw_df$eng_min),2), 
+                    MFE=round(as.numeric(raw_df$mfe),2), 
+                    BPper=round(as.numeric(raw_df$bp_per),2), 
+                    foldedStructure=raw_df$structure,
+                    off=as.numeric(raw_df$no_of_OFFS),
+                    target=raw_df$seqid, spos=as.numeric(raw_df$start), epos=as.numeric(raw_df$end))
+  samples <- colnames(raw_df)[18:dim(raw_df)[2]]
+  
+  reads <- NULL
+  rperc <- NULL
+  tperc <- NULL
+  for (i in 1:(dim(raw_df)[1])){
+    reads <- rbind(reads, sapply(raw_df[i,samples], FUN = function(x){return(as.numeric(strsplit(x = strsplit(x = x, split = "-",fixed = TRUE)[[1]][1], split = '_', fixed = TRUE)[[1]][1]))}))
+    rperc <- rbind(rperc, sapply(raw_df[i,samples], FUN = function(x){return(as.numeric(strsplit(x = strsplit(x = x, split = "-",fixed = TRUE)[[1]][2], split = '_', fixed = TRUE)[[1]][1]))}))
+    tperc <- rbind(tperc, sapply(raw_df[i,samples], FUN = function(x){return(as.numeric(strsplit(x = strsplit(x = x, split = "-",fixed = TRUE)[[1]][3], split = '_', fixed = TRUE)[[1]][1]))}))
+  }
+  tmp$dep_reads <- rowMeans(reads)
+  tmp$avg_dep_per <- round(rowMeans(rperc),0)
+  tmp$total_dep_per <- round(rowMeans(tperc),0)
+  for (i in 1:length(samples)){
+    sample<-samples[i]
+    tmp[[paste("S", as.character(i), "_", sample, "_reads_info", sep="")]] <- reads[,sample]
+    tmp[[paste("S", as.character(i), "_", sample, "_rrna_per_info", sep="")]] <- rperc[,sample]
+    tmp[[paste("S", as.character(i), "_", sample, "_tot_per_info", sep="")]] <- tperc[,sample]
+  }
+  return(tmp)
+}
+
 # Defining UI ----
 ui <- fluidPage(
   tags$head(
@@ -48,12 +82,16 @@ ui <- fluidPage(
   ),
   
   sidebarPanel(
-    titlePanel(title = HTML('<i>Ribo-ODDR</i> <small>v1.0</small></br>
-                            <small><small>Ribo-seq focused Oligo Design tool for Depleting Ribosomal RNAs</small></small></br>
-                            <hr>
-                            <small><small>Created by <a href="https://www.fallerlab.com/" target="_blank">Faller lab</a></small></small>')),
+    titlePanel(title = HTML('<i>Ribo-ODDR</i> <small>v0.9</small></br>
+                            <small><small>Ribo-seq focused Oligo Design tool for Depleting Ribosomal RNAs</small></small></br>')),
+
     conditionalPanel(
-      condition = "input.tabchoice == 'Select Oligos' | input.tabchoice == 'Instructions' ",
+      condition = "input.tabchoice == 'Welcome' | input.tabchoice == 'About' ",
+      h4(HTML('<hr><small>Created by <a href="https://www.fallerlab.com/" target="_blank">Faller Lab</a></small>'))
+    ),
+    
+    conditionalPanel(
+      condition = "input.tabchoice == 'Instructions' | input.tabchoice == 'Select Oligos'",
       hr(),
       h4(HTML('<i><b>Ribo-ODDR:oligo-selector</b></i> - shiny app for choosing rRNA depletion oligos')),
       hr(),
@@ -63,28 +101,54 @@ ui <- fluidPage(
                 accept = c("text/gff3", "text/gff3,text/plain", ".gff3")),
       actionButton(inputId = "clearall", label = "clear and reload")
     ),
+    
+    conditionalPanel(
+      condition = "input.tabchoice == 'Instructions'",
+      h4(HTML('<hr><small>Created by <a href="https://www.fallerlab.com/" target="_blank">Faller Lab</a></small>'))
+    ),
+    
     conditionalPanel(
       condition = "input.tabchoice == 'Select Oligos'",
       hr(),
       h4("Filter designed oligos by"),
-      sliderInput("o_l", label = h5("size"), min = 0, max = 1, value = c(0,1)),
-      sliderInput("o_tdp", label = h5("average depletion percentage"), min = 0, max = 1, value = c(0,1)),
-      selectInput(inputId = "o_tar", choices = c("ALL"), label = h5("target ribosomal RNA")),
+      sliderInput("o_l", label = h5("Oligo length (size)"), min = 0, max = 1, value = c(0,1)),
+      sliderInput("o_tdp", label = h5("Average depletion percentage"), min = 0, max = 1, value = c(0,1)),
+      selectInput(inputId = "o_tar", choices = c("ALL"), label = h5("Target (ribosomal) RNA to deplete")),
       sliderInput("o_gc", label = h5("GC ratio"), min = 0, max = 1, value = c(0,1)),
-      sliderInput("o_be", label = h5("binding energy"), min = 0, max = 1, value = c(0,1)),
-      sliderInput("o_off", label = h5("off-targets"), min = 0, max = 1, value = c(0,1)),
-      sliderInput("o_sc", label = h5("depletion score"), min = 0, max = 1, value = c(0,1)),
-      sliderInput("o_eng", label = h5("self-fold MFE"), min = 0, max = 1, value = c(0,1))
+      sliderInput("o_be", label = h5("Oligo binding energy"), min = 0, max = 1, value = c(0,1)),
+      sliderInput("o_off", label = h5("Number of potential off-targets"), min = 0, max = 1, value = c(0,1)),
+      sliderInput("o_sc", label = h5("Depletion score"), min = 0, max = 1, value = c(0,1)),
+      sliderInput("o_eng", label = h5("Oligo self-fold MFE"), min = 0, max = 1, value = c(0,1)),
+      hr(),
+      h4(HTML('<hr><small>Created by <a href="https://www.fallerlab.com/" target="_blank">Faller Lab</a></small>'))
     ),
     width = 3
   ),
+  
   mainPanel(
     tabsetPanel(id = "tabchoice",
       tabPanel(title = "Welcome",
                titlePanel(title = HTML('<i><b>Ribo-ODDR:oligo-selector</b></i> - shiny app for choosing rRNA depletion oligos'),
                           windowTitle = "Ribo-ODDR:oligo-selector"),
                hr(),
-               h4("Some texthere")
+               h4(HTML('Welcome! <br><br>
+                        This app has been designed as an extension to <i>Ribo-ODDR</i> oligo design pipeline,
+                        with the hope that it will be useful for you to select your rRNA depletion oligos 
+                        from the list of oligos designed by <i>Ribo-ODDR</i>. 
+                        <br><br>
+                        From the tabs above, please click "<i>Instructions</i>" and read the manual on how to use this tool.
+                        <br><br>
+                        If you are already familiar with the tool, continue by clicking "<i>Select Oligos</i>".
+                        <br><br>
+                        To learn more about <i>Ribo-ODDR</i>, please visit the "<i>About</i>" tab.
+                        <br><br>
+                        If you are using this tool, do not forget to cite us.
+                        <br>
+                        <i>Citation comes here.</i>
+                        <br>
+                        <hr>Click <a href="https://github.com/ferhatalkan/Ribo-ODDR" target="_blank">here</a> 
+                            to access the source code of <i>Ribo-ODDR</i> pipeline.
+                       '))
                ),
       tabPanel(title = "Instructions"),
       tabPanel(title = "Select Oligos",
@@ -121,35 +185,6 @@ ui <- fluidPage(
   )
 )
 
-get_df_from_gff <- function(raw_df){
-  tmp <- data.frame(oligoID=raw_df$ID, seq=raw_df$seq, size=nchar(raw_df$seq),
-                    dep.score=round(as.numeric(raw_df$score.1),2), GC=round(as.numeric(raw_df$gc_content),2), 
-                    energy=round(as.numeric(raw_df$eng_min),2), 
-                    MFE=round(as.numeric(raw_df$mfe),2), BPper=round(as.numeric(raw_df$bp_per),2), 
-                    foldedStructure=raw_df$structure,
-                    off=as.numeric(raw_df$no_of_OFFS),
-                    target=raw_df$seqid, spos=as.numeric(raw_df$start), epos=as.numeric(raw_df$end))
-  samples <- colnames(raw_df)[18:dim(raw_df)[2]]
-
-  reads <- NULL
-  rperc <- NULL
-  tperc <- NULL
-  for (i in 1:(dim(raw_df)[1])){
-    reads <- rbind(reads, sapply(raw_df[i,samples], FUN = function(x){return(as.numeric(strsplit(x = strsplit(x = x, split = "-",fixed = TRUE)[[1]][1], split = '_', fixed = TRUE)[[1]][1]))}))
-    rperc <- rbind(rperc, sapply(raw_df[i,samples], FUN = function(x){return(as.numeric(strsplit(x = strsplit(x = x, split = "-",fixed = TRUE)[[1]][2], split = '_', fixed = TRUE)[[1]][1]))}))
-    tperc <- rbind(tperc, sapply(raw_df[i,samples], FUN = function(x){return(as.numeric(strsplit(x = strsplit(x = x, split = "-",fixed = TRUE)[[1]][3], split = '_', fixed = TRUE)[[1]][1]))}))
-  }
-  tmp$dep_reads <- rowMeans(reads)
-  tmp$avg_dep_per <- round(rowMeans(rperc),0)
-  tmp$total_dep_per <- round(rowMeans(tperc),0)
-  for (i in 1:length(samples)){
-     sample<-samples[i]
-     tmp[[paste("S", as.character(i), "_", sample, "_reads_info", sep="")]] <- reads[,sample]
-     tmp[[paste("S", as.character(i), "_", sample, "_rrna_per_info", sep="")]] <- rperc[,sample]
-     tmp[[paste("S", as.character(i), "_", sample, "_tot_per_info", sep="")]] <- tperc[,sample]
-  }
-  return(tmp)
-}
 
 # Defining server logic ----
 server <- function(input, output, session) {
@@ -216,7 +251,7 @@ server <- function(input, output, session) {
   observeEvent(input$thegff, {
     inFile <- input$thegff
     if (!is.null(inFile)) {
-      df <- get_df_from_gff(data.frame(rtracklayer::readGFF(inFile$datapath)))
+      df <- get_df_from_gff(inFile$datapath)
       design_ol_DF$dfWorking <- df
       filter_ol_DF$dfWorking <-  design_ol_DF$dfWorking 
       select_ol_DF$dfWorking <- data.frame()
@@ -251,7 +286,7 @@ server <- function(input, output, session) {
       df <- df[df$target==input$o_tar,]
     filter_ol_DF$dfWorking <- df
     if (dim(df)[1]>0)
-      filter_ol_DF$dfWorking[,c("avg_dep_per","seq","size","GC","target","spos","epos","dep.score","energy","MFE","BPper","off")]
+      filter_ol_DF$dfWorking[,c("avg_dep_per","seq","size","GC","target","spos","epos","dep.score","energy","MFE","off")]
   }, selection = "single", options = list(
     lengthMenu = c(25, 50, 100, 150, 200),
     order = list(list(1, 'desc'),list(8, 'desc')),
@@ -268,7 +303,7 @@ server <- function(input, output, session) {
   
   output$selection <-  renderTable({
     if (dim(select_ol_DF$dfWorking)[1]>0)
-      select_ol_DF$dfWorking[,c("seq","size","GC","target","spos","epos","dep.score","energy","MFE","BPper","off")]
+      select_ol_DF$dfWorking[,c("seq","size","GC","target","spos","epos","dep.score","energy","MFE","off")]
   },spacing = "s",width = "auto")
   
   output$selectstats <- renderPlot({
