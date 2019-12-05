@@ -30,22 +30,27 @@
 require(shiny)
 require(shinythemes)
 require(DT)
-require(rtracklayer)
 require(ggplot2)
 
 ## Premade functions
-get_df_from_gff <- function(rawfile){
-  raw_df <- data.frame(rtracklayer::readGFF(rawfile))
-  tmp <- data.frame(oligoID=raw_df$ID, seq=raw_df$seq, size=nchar(raw_df$seq),
-                    dep.score=round(as.numeric(raw_df$score.1),2), 
+get_df_from_csv <- function(rawfile){
+  print(rawfile)
+  raw_df <- read.csv(file = rawfile, stringsAsFactors = FALSE, comment.char = "#")
+  tmp <- data.frame(oligoID=raw_df$oligoID, seq=raw_df$sequence, size=raw_df$length,
+                    avg_dep_per=round(raw_df$avg_dep_per,1),
+                    dep.score=round(as.numeric(raw_df$score),2), 
                     GC=round(as.numeric(raw_df$gc_content),2), 
                     energy=round(as.numeric(raw_df$eng_min),2), 
                     MFE=round(as.numeric(raw_df$mfe),2), 
                     BPper=round(as.numeric(raw_df$bp_per),2), 
                     foldedStructure=raw_df$structure,
-                    off=as.numeric(raw_df$no_of_OFFS),
-                    target=raw_df$seqid, spos=as.numeric(raw_df$start), epos=as.numeric(raw_df$end))
-  samples <- colnames(raw_df)[18:dim(raw_df)[2]]
+                    off=as.numeric(raw_df$no_of_OFFs),
+                    target=sapply(raw_df$target,FUN=function(x){return(strsplit(x,":")[[1]][1])}),
+                    spos=as.numeric(sapply(raw_df$target,FUN=function(x){return(strsplit(strsplit(x,":")[[1]][2], "-")[[1]][1])})),
+                    epos=as.numeric(sapply(raw_df$target,FUN=function(x){return(strsplit(strsplit(x,":")[[1]][2], "-")[[1]][2])})),
+                    stringsAsFactors = FALSE)
+  rownames(tmp)<-tmp$oligoID
+  samples <- colnames(raw_df)[14:dim(raw_df)[2]]
   
   reads <- NULL
   rperc <- NULL
@@ -56,8 +61,8 @@ get_df_from_gff <- function(rawfile){
     tperc <- rbind(tperc, sapply(raw_df[i,samples], FUN = function(x){return(as.numeric(strsplit(x = strsplit(x = x, split = "-",fixed = TRUE)[[1]][3], split = '_', fixed = TRUE)[[1]][1]))}))
   }
   tmp$dep_reads <- rowMeans(reads)
-  tmp$avg_dep_per <- round(rowMeans(rperc),0)
-  tmp$total_dep_per <- round(rowMeans(tperc),0)
+  #tmp$avg_dep_per <- round(rowMeans(rperc),1)
+  tmp$total_dep_per <- round(rowMeans(tperc),1)
   for (i in 1:length(samples)){
     sample<-samples[i]
     tmp[[paste("S", as.character(i), "_", sample, "_reads_info", sep="")]] <- reads[,sample]
@@ -97,8 +102,8 @@ ui <- fluidPage(
       hr(),
       h4("Upload your Ribo-ODDR results"),
       h6("(restarts the session)"),
-      fileInput("thegff", label = HTML("Please choose the Ribo-ODDR <i>gff3</i> output"),
-                accept = c("text/gff3", "text/gff3,text/plain", ".gff3")),
+      fileInput("thecsv", label = HTML("Please choose the Ribo-ODDR <i>CSV</i> output"),
+                accept = c("text/csv", "text/csv,text/plain", ".csv")),
       actionButton(inputId = "clearall", label = "clear and reload")
     ),
     
@@ -163,13 +168,15 @@ ui <- fluidPage(
                ),
                hr(),
                h3('Ribo-ODDR designed oligos overview'),
+               
+               verbatimTextOutput(outputId = "design_stats",placeholder = TRUE),
                fluidRow(
-                 column(6,
-                        actionButton(inputId = "addtoselection", 
-                                     label = HTML("Click here to add the selected oligo<br>to the upper selection list<br>& discard the overlapping oligos"))
-                        ),
-                 column(6,
-                        verbatimTextOutput(outputId = "design_stats",placeholder = TRUE)
+                 column(8,
+                        plotOutput('selected_pots', height = 200)
+                 ),
+                 column(4,
+                        actionButton(inputId = "addtoselection", width = "100%",
+                                     label = HTML("<small>Click to add<br>the selected oligo<br>to the upper<br>selection list &<br>discard overlapping<br>oligos here</small>"))
                         )
                ),
                hr(),
@@ -223,9 +230,9 @@ server <- function(input, output, session) {
   observeEvent(input$clearall, {
     showModal(modalDialog(title = "Important message",
               "Selected oligos (top table) have been cleared and designed oligo list (bottom table) has been refreshed!"))
-    inFile <- input$thegff
+    inFile <- input$thecsv
     if (!is.null(inFile)) {
-      df <- get_df_from_gff(data.frame(rtracklayer::readGFF(inFile$datapath)))
+      df <- get_df_from_csv(inFile$datapath)
       design_ol_DF$dfWorking <- df
       filter_ol_DF$dfWorking <- design_ol_DF$dfWorking 
       select_ol_DF$dfWorking <- data.frame()
@@ -248,12 +255,12 @@ server <- function(input, output, session) {
     }
   }) 
   
-  observeEvent(input$thegff, {
-    inFile <- input$thegff
+  observeEvent(input$thecsv, {
+    inFile <- input$thecsv
     if (!is.null(inFile)) {
-      df <- get_df_from_gff(inFile$datapath)
+      df <- get_df_from_csv(inFile$datapath)
       design_ol_DF$dfWorking <- df
-      filter_ol_DF$dfWorking <-  design_ol_DF$dfWorking 
+      filter_ol_DF$dfWorking <- design_ol_DF$dfWorking 
       select_ol_DF$dfWorking <- data.frame()
       updateSliderInput(session = session, inputId = "o_l", min = min(df$size), max = max(df$size), 
                         value = c(min(df$size), max(df$size)))
@@ -295,10 +302,35 @@ server <- function(input, output, session) {
   
   output$design_stats <- renderText({ 
     s = input$designs_rows_selected
-    if (length(s)) 
-      as.character(filter_ol_DF$dfWorking[s,"foldedStructure"])
-    else
-      "Selected oligo information will be summarized here"
+    if (length(s)){
+      one_df <- filter_ol_DF$dfWorking[s,]
+      paste("Selected:", one_df$oligoID, "| Sequence:", one_df$seq, "| Self-fold:", one_df$foldedStructure, 
+            "| No of off-targets:", as.character(one_df$off),
+            "| On average:", one_df$avg_dep_per, "% rRNA depletion (details plotted)")
+    } else
+      "Click an oligo below to summarize its self-fold information here"
+  })
+  
+  output$selected_pots <- renderPlot({
+    s = input$designs_rows_selected
+    if (length(s)) {
+      melted <- NULL
+      one_df <- filter_ol_DF$dfWorking[s,]
+      for(tag in colnames(one_df)){
+        if(endsWith(x = tag, suffix = "_info")){
+          if(endsWith(x = tag, suffix = "_reads_info"))
+            melted<-rbind(melted, data.frame(sample=gsub(pattern = "_reads_info",replacement = "",fixed = TRUE,x = tag), tag="reads", value=one_df[,tag]))
+          else if(endsWith(x = tag, suffix = "_rrna_per_info"))
+            melted<-rbind(melted, data.frame(sample=gsub(pattern = "_rrna_per_info",replacement = "",fixed = TRUE,x = tag), tag="rrna_per", value=one_df[,tag]))
+          else if(endsWith(x = tag, suffix = "_tot_per_info"))
+            melted<-rbind(melted, data.frame(sample=gsub(pattern = "_tot_per_info",replacement = "",fixed = TRUE,x = tag), tag="tot_per", value=one_df[,tag]))
+        }
+      }
+      if(!is.null(melted))
+        ggplot(melted[melted$tag=="rrna_per",],aes(x=sample,y=value,fill=sample))+
+        geom_bar(stat = "identity")+ylab("rRNA depletion percentage")+
+        theme(axis.text.x = element_blank(), legend.direction = "vertical",legend.position = "right") 
+    }
   })
   
   output$selection <-  renderTable({

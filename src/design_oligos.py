@@ -2,9 +2,11 @@
 
 ##################################################
 #
-#  --- Ribo-ODDR - Oligo Design for Depleting rRNAs ---
-#  ---      in Ribosome profiling experiments       ---
-#  Version 1.0 (See the ChangeLog.md file for changes.)
+#  ---  Ribo-ODDR - Ribo-seq focused Oligo Design pipeline for ---
+#  ---     experiment-specific Depletion of Ribosomal RNAs     ---
+#
+#  Oligo-design script
+#  Version 0.9 (See the ChangeLog.md file for changes.)
 #
 #  Copyright 2019   Ferhat Alkan <f.alkan@nki.nl>
 #                   William Faller <w.faller@nki.nl>
@@ -33,11 +35,11 @@ import sys, gzip, pysam, os, argparse, itertools, subprocess
 from Bio import SeqIO, Seq, SeqRecord
 from Bio.Alphabet import generic_dna, generic_rna
 
-__version__ = "0.1"
+__version__ = "0.9"
 __author__ = "Ferhat Alkan <f.alkan@nki.nl>"
 
 ## GLOBAL DECLARATIONS ##
-# intermediate files that should be cleared at the exit
+# add intermediate files that should be cleared at the exit
 INT_FILES = []
 # Exiting function
 def EXIT(ex_type=0,message=""):
@@ -92,7 +94,7 @@ def get_seq(fa_file):
             TX_dic[record.id] = str(record.seq)
     return(TX_dic)
 
-# Parse bam, return positional depths
+# Parse BAM alignment file, return positional depths (number of reads for every position)
 def get_reads(bam_file, TX_dic, total_mapped):
     all_TX_reads = {}
     read_count = 0
@@ -116,7 +118,7 @@ def get_reads(bam_file, TX_dic, total_mapped):
         all_TX_reads[TX_id] = TX_reads
     return(all_TX_reads,read_count)
 
-# oligo class
+# oligo class, hold information on designed oligos
 class Oligo:
     def __init__(self, id, TX_id, i, oligo_target, score, avg_target_depth, dep_pot):
         self.id = id
@@ -361,6 +363,21 @@ def main():
                             'gc_content='+str(round(oligo.GC,2)),'mfe='+str(oligo.MFE),'structure='+oligo.structure,
                             'bp_per='+str(round(oligo.BPper,2)),'eng_min='+str(round(oligo.Emin,1)),
                             'no_of_OFFS='+("None" if args.no_OFF_search else str(len(oligo.offs)))]+[(k+'='+str(v[0])+"_reads-"+str(v[1])+"_pc_rRNA_mapping-"+str(v[2])+'_pc_total') for k,v in oligo.dep_pot.items()])])+'\n')
+
+        # oligos CSV
+        with open(args.output+"/oligos.csv",'w') as out_f:
+            out_f.write("# Ribo-ODDR "+__version__+" oligo output file\n")
+            samples = [k for k,v in oligo.dep_pot.items()]
+
+            out_f.write(",".join([ 'oligoID','length','sequence','target','avg_dep_per','score','gc_content','mfe','structure','bp_per','eng_min','no_of_OFFs', 'OFFs']+samples)+"\n")
+            for oligo in oligos.values():
+                avg_dep_per = round((sum([oligo.dep_pot[k][1] for k in samples]) / float(len(samples))) , 2)
+                out_f.write(','.join([oligo.id, str(oligo.l), oligo.seq,
+                                        ('"'+oligo.targetTX+':'+str(oligo.startPos+1)+'-'+str(oligo.startPos+oligo.l)+'"'),
+                                        str(avg_dep_per), str(oligo.score), str(round(oligo.GC,2)), str(oligo.MFE), oligo.structure, str(round(oligo.BPper,2)), str(round(oligo.Emin,1)),
+                                        ("None" if args.no_OFF_search else str(len(oligo.offs))),
+                                        ('"'+';'.join(list(set([off.split("\t")[3].replace('"','_') for off in oligo.offs])))+'"')]+
+                                     [('"'+str(oligo.dep_pot[k][0])+"_reads-"+str(oligo.dep_pot[k][1])+"_pc_rRNA_mapping-"+str(oligo.dep_pot[k][2])+'_pc_total'+'"') for k in samples])+'\n')
 
         # oligos off
         if args.no_OFF_search==False:
