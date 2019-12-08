@@ -117,7 +117,7 @@ ui <- fluidPage(
       hr(),
       h4("Filter designed oligos by"),
       sliderInput("o_l", label = h5("Oligo length (size)"), min = 0, max = 1, value = c(0,1)),
-      sliderInput("o_tdp", label = h5("Average depletion percentage"), min = 0, max = 1, value = c(0,1)),
+      sliderInput("o_tdp", label = h5("Average depleting potential"), min = 0, max = 1, value = c(0,1)),
       selectInput(inputId = "o_tar", choices = c("ALL"), label = h5("Target (ribosomal) RNA to deplete")),
       sliderInput("o_gc", label = h5("GC ratio"), min = 0, max = 1, value = c(0,1)),
       sliderInput("o_be", label = h5("Oligo binding energy"), min = 0, max = 1, value = c(0,1)),
@@ -137,37 +137,75 @@ ui <- fluidPage(
                           windowTitle = "Ribo-ODDR:oligo-selector"),
                hr(),
                h4(HTML('Welcome! <br><br>
-                        This app has been designed as an extension to <i>Ribo-ODDR</i> oligo design pipeline,
-                        with the hope that it will be useful for you to select your rRNA depletion oligos 
+                        This app has been designed as an extension to <i>Ribo-ODDR</i> oligo design pipeline
+                        with the hope that it will be useful to select your rRNA depletion oligos 
                         from the list of oligos designed by <i>Ribo-ODDR</i>. 
                         <br><br>
-                        From the tabs above, please click "<i>Instructions</i>" and read the manual on how to use this tool.
+                        From the tabs above, please click "<i>Instructions</i>" and read the manual on how to use this app.
                         <br><br>
-                        If you are already familiar with the tool, continue by clicking "<i>Select Oligos</i>".
+                        If you are already familiar with the app, continue by clicking "<i>Select Oligos</i>".
                         <br><br>
                         To learn more about <i>Ribo-ODDR</i>, please visit the "<i>About</i>" tab.
                         <br><br>
-                        If you are using this tool, do not forget to cite us.
-                        <br>
-                        <i>Citation comes here.</i>
+                        If you are using this tool, do not forget to cite our publication below.
+                        <hr>
+                        <i>Publication Citation comes here.</i>
                         <br>
                         <hr>Click <a href="https://github.com/ferhatalkan/Ribo-ODDR" target="_blank">here</a> 
                             to access the source code of <i>Ribo-ODDR</i> pipeline.
                        '))
                ),
-      tabPanel(title = "Instructions"),
+      tabPanel(title = "Instructions",
+               titlePanel(title = HTML('How to use <i>Ribo-ODDR:oligo-selector</i>?'),
+                          windowTitle = "Ribo-ODDR:oligo-selector"),
+               hr(),
+               h4(HTML('<b>What is this app?</b>: It is an extension to <i>Ribo-ODDR</i> oligo design pipeline, therefore, 
+                        prior to using this app, you need to run <i>Ribo-ODDR</i> and generate the CSV output with oligo designs.
+                        <hr>
+                        <b>Aim of the app?</b>: To help you analyze <i>Ribo-ODDR</i> designed oligos and choose the high potential ones for maximum rRNA depletion.
+                        <hr>
+                        <b>How to use?</b><br>
+                              <ul>
+                                <li>Upload your <i>Ribo-ODDR</i> generated CSV file in the left panel.</li>
+                                <li>Click "Select Oligos" tab above.</li>
+                                <li>Browse through the "All oligo designs - Overview", the bottom table, and, if needed, use the filter options on the left panel to narrow down this list.</li>
+                                <li>If you are in doubt about what these features are, please consult to <i>Ribo-ODDR</i> paper.</li>
+                                <li>To see sample-specific depleting potentials of an oligo, please click the oligo row in the bottom table.</li>
+                                <li>If you are happy with the oligo chosen in the bottom list, click the selection button to add it to the list above. 
+                                        This will automatically remove the overlapping oligos from the bottom list.</li>
+                                <li>Continue your selection by browsing, inspecting and adding the oligos from the bottom list to the upper selection list 
+                                until you are satisfied with your total depleting potential, shown as a plot next to the "Selected Oligos" list..</li>
+                              </ul> 
+                        <hr>
+                        <b>Note that:</b>
+                              <ul>
+                                <li>Oligo features are presented to the user with no threshold recommenddation. </li>
+                                <li>However, you should always consider selecting high depleting potential oligos with mid-range GC content and minimum off-targets.</li>
+                                <li>Features are presented to the user with no threshold recommenddation.</li>
+                              </ul> 
+                        <hr>
+                        If you are using <i>Ribo-ODDR</i>, do not forget to cite the publication below.
+                        <hr>
+                        <i>Publication Citation comes here.</i>
+                        <br>
+                        <hr>Click <a href="https://github.com/ferhatalkan/Ribo-ODDR" target="_blank">here</a> 
+                            to access the source code of <i>Ribo-ODDR</i> pipeline.
+                       '))
+               ),
       tabPanel(title = "Select Oligos",
-               h3('Selected oligos overview'),
+               h3('Selected oligos'),
                fluidRow(
                  column(3, 
                         plotOutput('selectstats', height = 300)
                  ),
                  column(9, 
-                        div(tableOutput(outputId = 'selection'), style = "font-size:75%")
+                        div(dataTableOutput(outputId = 'selection'), style = "font-size:75%"),
+                        h5("Add your selections from the list below and see your overall depleting potential here.
+                           When selection is done, copy your sequences and order :)")
                  )
                ),
                hr(),
-               h3('Ribo-ODDR designed oligos overview'),
+               h3('All oligo designs - Overview'),
                
                verbatimTextOutput(outputId = "design_stats",placeholder = TRUE),
                fluidRow(
@@ -175,18 +213,50 @@ ui <- fluidPage(
                         plotOutput('selected_pots', height = 200)
                  ),
                  column(4,
-                        actionButton(inputId = "addtoselection", width = "100%",
-                                     label = HTML("<small>Click to add<br>the selected oligo<br>to the upper<br>selection list &<br>discard overlapping<br>oligos here</small>"))
+                        actionButton(inputId = "addtoselection", width = "100%", icon("paper-plane"), 
+                                     style="color: #fff; background-color: #337ab7; border-color: #2e6da4",
+                                     label = "Selection Button")
                         )
                ),
                hr(),
                div(DT::dataTableOutput('designs'), style = "font-size:75%")
                ),
       tabPanel(title = "About",
-               titlePanel(title = HTML('<i><b>Ribo-ODDR:oligo-selector</b></i> - shiny app for choosing rRNA depletion oligos'),
-                          windowTitle = "Ribo-ODDR:oligo-selector"),
+               titlePanel(title = HTML('<b><i>Ribo-ODDR</i></b>'),
+                          windowTitle = "Ribo-ODDR:About"),
                hr(),
-               h4("Some texthere")
+               h4(HTML('The most common limitation in Ribo-Seq experiments is the overabundance of ribosomal RNA
+                (rRNA) fragments. <br><br>
+                Various strategies are employed
+                to tackle this issue, including the use of commercial
+                rRNA depletion kits. Unfortunately, as these have largely
+                been designed with RNASeq in mind, they may perform
+                suboptimally. <br><br>
+                In <i>Ribo-ODDR</i> publication, we show that the rRNA fragments
+                generated via Ribo-seq vary significantly with differing
+                experimental conditions, suggesting that a “one size fits all”
+                approach may result in inefficient rRNA depletion. <br><br>
+                In order to overcome this issue it is possible to use custom designed
+                biotinylated oligos complementary to the most abundant
+                rRNA fragments generated under specific experimental
+                conditions, however currently no computational framework
+                exists to aid the design of optimal oligos. <br><br>
+                To meet these demands, we have developed Ribo-ODDR, an oligo
+                design pipeline integrated with a user-friendly interface that
+                assists in oligo selection for efficient experiment-specific
+                rRNA depletion. <br><br>
+                One can use Ribo-ODDR with preliminary or previously
+                published data to identify the most abundant rRNA
+                fragments, and calculate the rRNA depleting potential
+                of potential oligos. <br><br>
+                Selecting oligos with high potential, computed by Ribo-ODDR, lead to a significant increase in rRNA depletion, and
+                increased sequencing depth as a result. 
+                <hr>
+                We hope that you find it useful. If you are interested in <i>Ribo-ODDR</i> publication, please see below.
+                <hr>
+                <i>Publication Citation comes here.</i>
+                <hr><small>Created by <a href="https://www.fallerlab.com/" target="_blank">Faller Lab</a></small>
+                '))
                )
     )
   )
@@ -208,9 +278,11 @@ server <- function(input, output, session) {
       designdf <- design_ol_DF$dfWorking
       designdf <- designdf[designdf$oligoID!=selectdf$oligoID,]
       
+      # Get oligos that target the same rRNA
       sametarget <- which(designdf$target==selectdf$target)
+      #Get overlapping oligos (>50% overlap)
       overlap <- sapply(sametarget, FUN = function(x){
-        if(length(intersect( ((designdf$spos[x]):(designdf$epos[x])), (selectdf$spos:selectdf$epos))) > (designdf$size[x]*0.5))
+        if(length(intersect( ((designdf$spos[x]):(designdf$epos[x])), (selectdf$spos:selectdf$epos))) > (designdf$size[x]*0.25))
           return(TRUE)
         else
           return(FALSE)
@@ -258,6 +330,9 @@ server <- function(input, output, session) {
   observeEvent(input$thecsv, {
     inFile <- input$thecsv
     if (!is.null(inFile)) {
+      updateActionButton(session = session, inputId = "addtoselection",
+                         label = HTML("Selection Button<br><small>Click to add the<br>selected oligo to the<br>upper selection list<br>& discard overlapping<br>oligos from below<br>(min overlap >%25)</small>"))
+      HTML("<small>Click to add<br>the selected oligo<br>to the upper<br>selection list &<br>discard overlapping<br>oligos below</small>")
       df <- get_df_from_csv(inFile$datapath)
       design_ol_DF$dfWorking <- df
       filter_ol_DF$dfWorking <- design_ol_DF$dfWorking 
@@ -292,21 +367,70 @@ server <- function(input, output, session) {
     if(input$o_tar!="ALL")
       df <- df[df$target==input$o_tar,]
     filter_ol_DF$dfWorking <- df
+    
+    sketch = htmltools::withTags(table(
+      class = 'display',
+      thead(
+        tr(
+          th('', title = 'Oligo IDs as given in the uploaded CSV file'),
+          th('avg_dep_per', title = 'Average depleting potential of the oligo. Click the oligo to see details.'),
+          th('seq', title = 'Oligo sequence'),
+          th('size', title = 'Oligo length'),
+          th('GC', title = 'GC percentage for the oligo'),
+          th('target', title = 'Target rRNA for the oligo'),
+          th('spos', title = 'Start position of the oligo target region'),
+          th('epos', title = 'End position of the oligo target region'),
+          th('energy', title = 'Binding energy of the perfect complementary oligo binding'),
+          th('MFE', title = 'Minimum Free Energy of the oligo self-folding at 37C'),
+          th('off', title = 'Number of predicted off-targets for this oligo. To see what these off-targets are, please take a look at the OFF file generated by Ribo-ODDR pipeline.')
+        )
+      )
+    ))
     if (dim(df)[1]>0)
-      filter_ol_DF$dfWorking[,c("avg_dep_per","seq","size","GC","target","spos","epos","dep.score","energy","MFE","off")]
-  }, selection = "single", options = list(
-    lengthMenu = c(25, 50, 100, 150, 200),
-    order = list(list(1, 'desc'),list(8, 'desc')),
-    pageLength = 25
-  ))
+      datatable(filter_ol_DF$dfWorking[,c("avg_dep_per","seq","size","GC","target","spos","epos","energy","MFE","off")], 
+                selection = "single", container = sketch,
+                options = list(
+                  lengthMenu = c(25, 50, 100, 150, 200),
+                  order = list(list(1, 'desc'),list(8, 'desc')),
+                  pageLength = 25
+                ))
+  })
+  
+  
+  output$selection <-  DT::renderDataTable({
+    sketch = htmltools::withTags(table(
+      class = 'display',
+      thead(
+        tr(
+          th('', title = 'Oligo IDs as given in the uploaded CSV file'),
+          th('avg_dep_per', title = 'Average depleting potential of the oligo. Click the oligo to see details.'),
+          th('seq', title = 'Oligo sequence'),
+          th('size', title = 'Oligo length'),
+          th('GC', title = 'GC percentage for the oligo'),
+          th('target', title = 'Target rRNA for the oligo'),
+          th('spos', title = 'Start position of the oligo target region'),
+          th('epos', title = 'End position of the oligo target region'),
+          th('energy', title = 'Binding energy of the perfect complementary oligo binding'),
+          th('MFE', title = 'Minimum Free Energy of the oligo self-folding at 37C'),
+          th('off', title = 'Number of predicted off-targets for this oligo. To see what these off-targets are, please take a look at the OFF file generated by Ribo-ODDR pipeline.')
+        )
+      )
+    ))
+    if (dim(select_ol_DF$dfWorking)[1]>0)
+      datatable(select_ol_DF$dfWorking[,c('avg_dep_per',"seq","size","GC","target","spos","epos","energy","MFE","off")],
+                selection = "none", container = sketch,
+                options = list(paging = FALSE, searching = FALSE))
+  })
   
   output$design_stats <- renderText({ 
     s = input$designs_rows_selected
     if (length(s)){
       one_df <- filter_ol_DF$dfWorking[s,]
-      paste("Selected:", one_df$oligoID, "| Sequence:", one_df$seq, "| Self-fold:", one_df$foldedStructure, 
+      paste("Selected:", one_df$oligoID, "| Sequence:", one_df$seq,
+            "| On average ", one_df$avg_dep_per, "% rRNA depletion (details plotted)", 
             "| No of off-targets:", as.character(one_df$off),
-            "| On average:", one_df$avg_dep_per, "% rRNA depletion (details plotted)")
+            "| Self-fold:", one_df$foldedStructure
+            )
     } else
       "Click an oligo below to summarize its self-fold information here"
   })
@@ -328,15 +452,10 @@ server <- function(input, output, session) {
       }
       if(!is.null(melted))
         ggplot(melted[melted$tag=="rrna_per",],aes(x=sample,y=value,fill=sample))+
-        geom_bar(stat = "identity")+ylab("rRNA depletion percentage")+
-        theme(axis.text.x = element_blank(), legend.direction = "vertical",legend.position = "right") 
+        geom_bar(stat = "identity")+ylab("Oligo depleting potential")+
+        theme(axis.text.x = element_blank(), legend.title = element_blank(),legend.direction = "vertical",legend.position = "right") 
     }
   })
-  
-  output$selection <-  renderTable({
-    if (dim(select_ol_DF$dfWorking)[1]>0)
-      select_ol_DF$dfWorking[,c("seq","size","GC","target","spos","epos","dep.score","energy","MFE","off")]
-  },spacing = "s",width = "auto")
   
   output$selectstats <- renderPlot({
     melted <- NULL
@@ -352,8 +471,9 @@ server <- function(input, output, session) {
     }
     if(!is.null(melted))
       ggplot(melted[melted$tag=="rrna_per",],aes(x=sample,y=value,fill=sample))+
-      geom_bar(stat = "identity")+ylab("rRNA depletion percentage")+
-      theme(axis.text.x = element_blank(), legend.direction = "vertical",legend.position = "bottom")
+      geom_bar(stat = "identity")+ylab("Total depleting potential")+
+      ggtitle("Total Depletion")+ylim(0,100)+
+      theme(axis.text.x = element_blank(), legend.direction = "vertical",legend.title = element_blank(),legend.position = "bottom")
   })
 }
 
