@@ -1,2 +1,2 @@
-##v 1.0 - 2019-XX-XX
-- First version of the pipeline
+##v 0.9 - 2019-12-12
+- Paper submission version released
