@@ -1,11 +1,12 @@
 
 ##################################################
 #
-#  --- Ribo-ODDR - Oligo Design for Depleting rRNAs ---
-#  ---      in Ribosome profiling experiments       ---
+#  ---  Ribo-ODDR - Ribo-seq focused Oligo Design pipeline for ---
+#  ---     experiment-specific Depletion of Ribosomal RNAs     ---
 #  Version 0.9 (See the ChangeLog.md file for changes.)
 #
-#  Copyright 2019   Ferhat Alkan <f.alkan@nki.nl>
+#  Copyright 2019   Faller Lab <fallerlab@gmail.com>
+#                   Ferhat Alkan <f.alkan@nki.nl>
 #                   William Faller <w.faller@nki.nl>
 #  (See the AUTHORS file for other contributors.)
 #
@@ -56,18 +57,15 @@ get_df_from_csv <- function(rawfile){
   rperc <- NULL
   tperc <- NULL
   for (i in 1:(dim(raw_df)[1])){
-    reads <- rbind(reads, sapply(raw_df[i,samples], FUN = function(x){return(as.numeric(strsplit(x = strsplit(x = x, split = "-",fixed = TRUE)[[1]][1], split = '_', fixed = TRUE)[[1]][1]))}))
-    rperc <- rbind(rperc, sapply(raw_df[i,samples], FUN = function(x){return(as.numeric(strsplit(x = strsplit(x = x, split = "-",fixed = TRUE)[[1]][2], split = '_', fixed = TRUE)[[1]][1]))}))
-    tperc <- rbind(tperc, sapply(raw_df[i,samples], FUN = function(x){return(as.numeric(strsplit(x = strsplit(x = x, split = "-",fixed = TRUE)[[1]][3], split = '_', fixed = TRUE)[[1]][1]))}))
+    reads <- rbind(reads, sapply(raw_df[i,samples], FUN = function(x){return(as.numeric(strsplit(x = strsplit(x = x, split = "_",fixed = TRUE)[[1]][1], split = '-', fixed = TRUE)[[1]][1]))}))
+    rperc <- rbind(rperc, sapply(raw_df[i,samples], FUN = function(x){return(as.numeric(strsplit(x = strsplit(x = x, split = "_",fixed = TRUE)[[1]][2], split = '-', fixed = TRUE)[[1]][1]))}))
   }
   tmp$dep_reads <- rowMeans(reads)
   #tmp$avg_dep_per <- round(rowMeans(rperc),1)
-  tmp$total_dep_per <- round(rowMeans(tperc),1)
   for (i in 1:length(samples)){
     sample<-samples[i]
     tmp[[paste("S", as.character(i), "_", sample, "_reads_info", sep="")]] <- reads[,sample]
     tmp[[paste("S", as.character(i), "_", sample, "_rrna_per_info", sep="")]] <- rperc[,sample]
-    tmp[[paste("S", as.character(i), "_", sample, "_tot_per_info", sep="")]] <- tperc[,sample]
   }
   return(tmp)
 }
@@ -102,7 +100,7 @@ ui <- fluidPage(
       hr(),
       h4("Upload your Ribo-ODDR results"),
       h6("(restarts the session)"),
-      fileInput("thecsv", label = HTML("Please choose the Ribo-ODDR <i>CSV</i> output"),
+      fileInput("thecsv", label = HTML("Please choose your Ribo-ODDR <i>CSV</i> output"),
                 accept = c("text/csv", "text/csv,text/plain", ".csv")),
       actionButton(inputId = "clearall", label = "clear and reload")
     ),
@@ -160,7 +158,7 @@ ui <- fluidPage(
                           windowTitle = "Ribo-ODDR:oligo-selector"),
                hr(),
                h4(HTML('<b>What is this app?</b>: It is an extension to <i>Ribo-ODDR</i> oligo design pipeline, therefore, 
-                        prior to using this app, you need to run <i>Ribo-ODDR</i> and generate the CSV output with oligo designs.
+                        prior to using this app, you need to run <i>Ribo-ODDR</i> and generate your CSV output with oligo designs.
                         <hr>
                         <b>Aim of the app?</b>: To help you analyze <i>Ribo-ODDR</i> designed oligos and choose the high potential ones for maximum rRNA depletion.
                         <hr>
@@ -255,6 +253,8 @@ ui <- fluidPage(
                 We hope that you find it useful. If you are interested in <i>Ribo-ODDR</i> publication, please see below.
                 <hr>
                 <i>Publication Citation comes here.</i>
+                <hr>Click <a href="https://github.com/ferhatalkan/Ribo-ODDR" target="_blank">here</a> 
+                            to access the source code of <i>Ribo-ODDR</i> pipeline.
                 <hr><small>Created by <a href="https://www.fallerlab.com/" target="_blank">Faller Lab</a></small>
                 '))
                )
@@ -359,13 +359,18 @@ server <- function(input, output, session) {
     df <- design_ol_DF$dfWorking
     df <- df[df$size >= input$o_l[1] & df$size <= input$o_l[2],]
     df <- df[df$avg_dep_per >= input$o_tdp[1] & df$avg_dep_per <= input$o_tdp[2],]
-    df <- df[df$off >= input$o_off[1] & df$off <= input$o_off[2],]
-    df <- df[df$energy >= input$o_be[1] & df$energy <= input$o_be[2],]
-    df <- df[df$MFE >= input$o_eng[1] & df$MFE <= input$o_eng[2],]
     df <- df[df$GC >= input$o_gc[1] & df$GC <= input$o_gc[2],]
     df <- df[df$dep.score >= input$o_sc[1] & df$dep.score <= input$o_sc[2],]
-    if(input$o_tar!="ALL")
-      df <- df[df$target==input$o_tar,]
+    if(dim(df)[1]>0) {
+      if (sum(is.na(df$off))==0)
+        df <- df[(df$off >= input$o_off[1] & df$off <= input$o_off[2]),]
+      if (sum(is.na(df$energy))==0)
+        df <- df[(df$energy >= input$o_be[1] & df$energy <= input$o_be[2]),]
+      if (sum(is.na(df$MFE))==0)
+        df <- df[(df$MFE >= input$o_eng[1] & df$MFE <= input$o_eng[2]),]
+      if(input$o_tar!="ALL")
+        df <- df[df$target==input$o_tar,]
+    }
     filter_ol_DF$dfWorking <- df
     
     sketch = htmltools::withTags(table(
@@ -429,7 +434,7 @@ server <- function(input, output, session) {
       paste("Selected:", one_df$oligoID, "| Sequence:", one_df$seq,
             "| On average ", one_df$avg_dep_per, "% rRNA depletion (details plotted)", 
             "| No of off-targets:", as.character(one_df$off),
-            "| Self-fold:", one_df$foldedStructure
+            "| Self-fold:", as.character(one_df$foldedStructure)
             )
     } else
       "Click an oligo below to summarize its self-fold information here"
@@ -446,8 +451,6 @@ server <- function(input, output, session) {
             melted<-rbind(melted, data.frame(sample=gsub(pattern = "_reads_info",replacement = "",fixed = TRUE,x = tag), tag="reads", value=one_df[,tag]))
           else if(endsWith(x = tag, suffix = "_rrna_per_info"))
             melted<-rbind(melted, data.frame(sample=gsub(pattern = "_rrna_per_info",replacement = "",fixed = TRUE,x = tag), tag="rrna_per", value=one_df[,tag]))
-          else if(endsWith(x = tag, suffix = "_tot_per_info"))
-            melted<-rbind(melted, data.frame(sample=gsub(pattern = "_tot_per_info",replacement = "",fixed = TRUE,x = tag), tag="tot_per", value=one_df[,tag]))
         }
       }
       if(!is.null(melted))
@@ -465,8 +468,6 @@ server <- function(input, output, session) {
           melted<-rbind(melted, data.frame(sample=gsub(pattern = "_reads_info",replacement = "",fixed = TRUE,x = tag), tag="reads", value=select_ol_DF$dfWorking[,tag]))
         else if(endsWith(x = tag, suffix = "_rrna_per_info"))
           melted<-rbind(melted, data.frame(sample=gsub(pattern = "_rrna_per_info",replacement = "",fixed = TRUE,x = tag), tag="rrna_per", value=select_ol_DF$dfWorking[,tag]))
-        else if(endsWith(x = tag, suffix = "_tot_per_info"))
-          melted<-rbind(melted, data.frame(sample=gsub(pattern = "_tot_per_info",replacement = "",fixed = TRUE,x = tag), tag="tot_per", value=select_ol_DF$dfWorking[,tag]))
       }
     }
     if(!is.null(melted))

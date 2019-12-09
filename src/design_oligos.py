@@ -8,7 +8,8 @@
 #  Oligo-design script
 #  Version 0.9 (See the ChangeLog.md file for changes.)
 #
-#  Copyright 2019   Ferhat Alkan <f.alkan@nki.nl>
+#  Copyright 2019   Faller Lab <fallerlab@gmail.com>
+#                   Ferhat Alkan <f.alkan@nki.nl>
 #                   William Faller <w.faller@nki.nl>
 #  (See the AUTHORS file for other contributors.)
 #
@@ -66,28 +67,28 @@ def f_open(filename, mode='r'):
 # Build the argument parser
 def get_parser():
     parser = argparse.ArgumentParser(description='Ribo-ODDR: Oligo Design for Depleting rRNAs in Ribo-seq experiments.')
-    parser.add_argument('-r','--rRNA_seqs', help='<Required> Fasta file for rRNA sequences (Same file used when aligning).', required=True)
-    parser.add_argument('-o','--output', help='<Required> Output DIRECTORY for designed oligos. EMPTY DIRECTORY MUST BE PASSED TO AVOID OVERWRITING!', required=True)
-    parser.add_argument('--bowtie2-build_exe', help='<Optional> Path to bowtie2-build executable. (Pass "--bowtie2-build_exe d" if available by default)', required=False)
-    parser.add_argument('--tophat_exe', help='<Optional> Path to tophat executable. (Pass "--tophat_exe d"if available by default)', required=False)
-    parser.add_argument('--samtools_exe', help='<Optional> Path to samtools executable. (Pass "--samtools_exe" with no argument if available by default)', required=False)
-    parser.add_argument('--RNAfold_exe', help='<Optional> Path to RNAfold executable. (Pass "--RNAfold_exe d" if available by default)', required=False)
-    parser.add_argument('--RIsearch2_exe', help='<Optional, but required for "cross-species optimization" and off-target search> Path to RIsearch2 executable. (Pass "--RIsearch2_exe d" if available by default)', required=False)
-    parser.add_argument('--OFFtargets', help='Path to protein-coding transcripts fasta file for potential off-target search.', required=False)
-    parser.add_argument('--OFFtargetsSUF', help='Alternatively, RIsearch2 index file for pc_transcript sequences.', required=False)
+    parser.add_argument('-r','--rRNA_seqs', metavar='<filepath>', help='<Required> Fasta file for rRNA sequences (Same file used when aligning).', required=True)
+    parser.add_argument('-o','--output', metavar='<directory_path>', help='<Required> Output DIRECTORY for designed oligos. EMPTY DIRECTORY MUST BE PASSED TO AVOID OVERWRITING!', required=True)
+    parser.add_argument('--bowtie2-build_exe', metavar='<exe>', help='<Optional> Path to bowtie2-build executable. (Pass "--bowtie2-build_exe d" if available by default)', required=False)
+    parser.add_argument('--tophat_exe', metavar='<exe>', help='<Optional> Path to tophat executable. (Pass "--tophat_exe d"if available by default)', required=False)
+    parser.add_argument('--samtools_exe', metavar='<exe>', help='<Optional> Path to samtools executable. (Pass "--samtools_exe" with no argument if available by default)', required=False)
+    parser.add_argument('--RNAfold_exe', metavar='<exe>', help='<Optional> Path to RNAfold executable. (Pass "--RNAfold_exe d" if available by default)', required=False)
+    parser.add_argument('--RIsearch2_exe', metavar='<exe>', help='<Optional, but required for "cross-species optimization" and off-target search> Path to RIsearch2 executable. (Pass "--RIsearch2_exe d" if available by default)', required=False)
+    parser.add_argument('--OFFtargets', metavar='<filepath>', help='Path to protein-coding transcripts fasta file for potential off-target search.', required=False)
+    parser.add_argument('--OFFtargetsSUF', metavar='<filepath>', help='Alternatively, RIsearch2 index file for pc_transcript sequences.', required=False)
     design = parser.add_argument_group("Novel oligo design mode","Design new oligos for rRNA depletion based on given Ribo-seq data.")
-    design.add_argument('-s','--samples', nargs='+', help='<Required> Sample names. These labels will also be used to access fastq or bam files. (Prefix+Label+Suffix)')
-    design.add_argument('-fp','--fastq_prefix', help='Prefix for trimmed Ribo-seq reads.')
-    design.add_argument('-fs','--fastq_suffix', help='Suffix for trimmed Ribo-seq reads.')
-    design.add_argument('-ap','--alignment_prefix', help='Prefix for alignment files (Ribo-seq reads aligned to rRNAs)')
-    design.add_argument('-as','--alignment_suffix', help='Suffix for alignment files (Ribo-seq reads aligned to rRNAs)')
-    design.add_argument('-l','--range', default='25-30', help='Length range of oligos given in "min:max" format. Default:"25-30"')
-    design.add_argument('-f','--force_design', type=int, default=20, help='For every given rRNA, force designing given number of oligos at every length in the pre-given range. Default:"10"')
+    design.add_argument('-s','--samples', metavar='<multiple labels>', nargs='+', help='<Required> Sample names. These labels will also be used to access fastq or bam files. (Prefix+Label+Suffix)')
+    design.add_argument('-fp','--fastq_prefix', metavar='<prefix>', help='Prefix for trimmed Ribo-seq reads.')
+    design.add_argument('-fs','--fastq_suffix', metavar='<suffix>', help='Suffix for trimmed Ribo-seq reads.')
+    design.add_argument('-ap','--alignment_prefix', metavar='<prefix>', help='Prefix for alignment files (Ribo-seq reads aligned to rRNAs)')
+    design.add_argument('-as','--alignment_suffix', metavar='<suffix>', help='Suffix for alignment files (Ribo-seq reads aligned to rRNAs)')
+    design.add_argument('-l','--range', metavar='<int-int>', default='25-30', help='Length range of oligos given in "min:max" format. Default:"25-30"')
+    design.add_argument('-f','--force_design', type=int, metavar='<int>', default=20, help='For every rRNA, report at least given number of oligos at every valid length, even if they don'+"'"+'t pass the filter. Default:"20"')
     optimize = parser.add_argument_group("Cross-species optimization mode","Optimize source oligos for depleting given rRNAs.")
-    optimize.add_argument('-op','--oligos2optimize', help="Fasta file for oligos that you want to optimize. (Overrides the design mode)")
+    optimize.add_argument('-op','--oligos2optimize', metavar='<filepath>', help="Fasta file for oligos that you want to optimize. (Overrides the design mode)")
     advanced = parser.add_argument_group("Advanced","Advanced options.")
-    advanced.add_argument('-pt','--rrna_perc_threshold', type=float, default=5.0, help="Filtering threshold (rRNA depletion percentage), applied within oligo score calculation. (default=5)")
-    advanced.add_argument('-st','--score_threshold', type=float,  default=0.25, help="Score threshold. Minimum ratio of samples that the oligo can deplete at least the selected percentage of rRNAs within. (default:0.25)")
+    advanced.add_argument('-pt','--rrna_perc_threshold', type=float, metavar='<float>', default=5.0, help="Filtering threshold (rRNA depletion percentage), applied within oligo score calculation. (default=5)")
+    advanced.add_argument('-st','--score_threshold', type=float, metavar='<float>',  default=0.25, help="Score threshold. Minimum ratio of samples that the oligo can deplete at least the selected percentage of rRNAs within. (default:0.25)")
     #advanced.add_argument('--no_OFF_search', action='store_true', help='Do not look for offtargets!')
 
     #parser.add_argument('--DNA_DNA_params', help='<Required> Path to DNA-DNA energy parameters. (misc/dna_mathews2004.par file from ViennaRNA package installation folder)', required=True)
@@ -156,7 +157,7 @@ class Oligo:
                 self.offs.add(line.decode('utf-8'))
 
 # Iterate over samples and find oligos that can deplete rRNAs in all
-def get_oligos_with_reads_start_end(all_reads_start_end, all_rRNA_read_count, TX_dic, sample_cutoff=0.25, rrna_cutoff=5, oligo_range=range(25,30), forceALL=10):
+def get_oligos_with_reads_start_end(all_reads_start_end, all_rRNA_read_count, TX_dic, sample_cutoff=0.25, rrna_cutoff=5, oligo_range=range(25,30), forceALL=20):
     sample_size = len(all_reads_start_end.keys())
 
     TXspec_oligos = {}
@@ -231,6 +232,12 @@ def main():
     print("#### END of the given args ####")
     print("#### RUN started ####")
 
+    # Work in output directory
+    output_path = os.path.abspath(args.output)
+    if not os.path.isdir(output_path):
+        EXIT(message=output_path+" is not a directory.")
+    os.chdir(output_path)
+    print("#### WORKING IN "+output_path+" directory ####")
 
     # Get rRNA sequences
     TX_dic = get_seq(args.rRNA_seqs)
@@ -252,12 +259,13 @@ def main():
     print('#Allowed lengths for oligo designs: ',str(oligo_range),' nts')
 
     oligos = {}
+
     # GET run mode
     if args.oligos2optimize != None:
         ols2opt = get_seq(args.oligos2optimize)
         ol_l_min = min([len(ol) for ol in ols2opt.values()])
-        sub = subprocess.Popen((args.RIsearch2_exe if args.RIsearch2_exe!="d" else "risearch2.x")+' -c '+args.rRNA_seqs+" -o "+args.output+"/rRNA_seqs.suf", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
-        sub = subprocess.Popen((args.RIsearch2_exe if args.RIsearch2_exe!="d" else "risearch2.x")+' -q '+args.oligos2optimize+" -i "+args.output+"/rRNA_seqs.suf -t 1 -s "+str(ol_l_min/2), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
+        sub = subprocess.Popen((args.RIsearch2_exe if args.RIsearch2_exe!="d" else "risearch2.x")+' -c '+args.rRNA_seqs+" -o "+output_path+"/rRNA_seqs.suf", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
+        sub = subprocess.Popen((args.RIsearch2_exe if args.RIsearch2_exe!="d" else "risearch2.x")+' -q '+args.oligos2optimize+" -i "+output_path+"/rRNA_seqs.suf -t 1 -s "+str(ol_l_min/2), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
         for ol_id, ol_seq in ols2opt.items():
             with gzip.open("risearch_"+ol_id+".out.gz") as self_int:
                 min_eng = 0
@@ -294,24 +302,24 @@ def main():
                 print("### Creating rRNA index with bowtie2-build.")
                 if args.bowtie2_build_exe==None or args.tophat_exe==None or args.samtools_exe==None:
                     EXIT(message="ERROR: 'bowtie2-build' and 'tophat' and 'samtools' executables are needed.!!!\n")
-                copyfile(args.rRNA_seqs, args.output+"/rRNA_sequences.fa")
-                out,err = subprocess.Popen(((args.bowtie2_build_exe if args.bowtie2_build_exe!="d" else "bowtie2-build")+" "+args.output+"/rRNA_sequences.fa "+args.output+"/rRNA_sequences"), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
-                if not os.path.isfile(args.output+"/rRNA_sequences.1.bt2"):
+                copyfile(args.rRNA_seqs, output_path+"/rRNA_sequences.fa")
+                out,err = subprocess.Popen(((args.bowtie2_build_exe if args.bowtie2_build_exe!="d" else "bowtie2-build")+" "+output_path+"/rRNA_sequences.fa "+output_path+"/rRNA_sequences"), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
+                if not os.path.isfile(output_path+"/rRNA_sequences.1.bt2"):
                     EXIT(message=err.decode("utf-8"))
                 for sample_label in args.samples:
                     print("### Aligning "+sample_label)
-                    os.mkdir(args.output+"/"+sample_label+"_vs_rRNAsequences")
+                    os.mkdir(output_path+"/"+sample_label+"_vs_rRNAsequences")
                     command = [(args.tophat_exe if args.tophat_exe!="d" else "tophat"),"-p 8 --no-novel-juncs","--no-novel-indels","--no-coverage-search", "--segment-length", "25",
-                                    "-o",args.output+"/"+sample_label+"_vs_rRNAsequences/", args.output+"/rRNA_sequences",
+                                    "-o",output_path+"/"+sample_label+"_vs_rRNAsequences/", output_path+"/rRNA_sequences",
                                         ("" if args.fastq_prefix==None else args.fastq_prefix)+sample_label+("" if args.fastq_suffix==None else args.fastq_suffix)]
                     out,err=subprocess.Popen((" ".join(command)), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
-                    if not os.path.isfile(args.output+"/"+sample_label+"_vs_rRNAsequences/accepted_hits.bam"):
+                    if not os.path.isfile(output_path+"/"+sample_label+"_vs_rRNAsequences/accepted_hits.bam"):
                         EXIT(message=err.decode("utf-8"))
-                    out,err=subprocess.Popen((args.samtools_exe if args.samtools_exe!="d" else "samtools")+" index "+args.output+"/"+sample_label+"_vs_rRNAsequences/accepted_hits.bam",
+                    out,err=subprocess.Popen((args.samtools_exe if args.samtools_exe!="d" else "samtools")+" index "+output_path+"/"+sample_label+"_vs_rRNAsequences/accepted_hits.bam",
                                         shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
-                    if not os.path.isfile(args.output+"/"+sample_label+"_vs_rRNAsequences/accepted_hits.bam.bai"):
+                    if not os.path.isfile(output_path+"/"+sample_label+"_vs_rRNAsequences/accepted_hits.bam.bai"):
                         EXIT(message=err.decode("utf-8"))
-                alignment_prefix = args.output+"/"
+                alignment_prefix = output_path+"/"
                 alignment_suffix = "_vs_rRNAsequences/accepted_hits.bam"
 
         for sample_label in args.samples:
@@ -330,10 +338,10 @@ def main():
                                     sample_cutoff=args.score_threshold, rrna_cutoff=args.rrna_perc_threshold, oligo_range=oligo_range, forceALL=args.force_design)
 
     if oligos != None:
-        SeqIO.write([SeqRecord.SeqRecord(Seq.Seq(oligo.seq,generic_rna), id=oligo.id, description='|'.join([str(round(oligo.score,2)),oligo.targetTX,str(oligo.startPos)])) for oligo in oligos.values()], args.output+"/oligos.fa", "fasta")
+        SeqIO.write([SeqRecord.SeqRecord(Seq.Seq(oligo.seq,generic_rna), id=oligo.id, description='|'.join([str(round(oligo.score,2)),oligo.targetTX,str(oligo.startPos)+"-"+str(oligo.startPos+oligo.l)])) for oligo in oligos.values()], output_path+"/oligos.fa", "fasta")
 
         # oligos order.fa
-        with open(args.output+"/oligos_order.fa",'w') as out_f:
+        with open(output_path+"/oligos_order.fa",'w') as out_f:
             for oligo in oligos.values():
                 out_f.write('>'+oligo.id+'\n/5Biosg/'+''.join([('r'+c) for c in oligo.seq])+'\n')
 
@@ -343,7 +351,7 @@ def main():
             sys.stderr.write("# WARNING: RNAfold_exe is not set. Self-folding information will not be reported.\n")
             print("# WARNING: RNAfold_exe is not set. Self-folding information will not be reported.")
         else:
-            out, err = subprocess.Popen((args.RNAfold_exe if args.RNAfold_exe!="d" else "RNAfold") +' --noPS < '+args.output+"/oligos.fa",
+            out, err = subprocess.Popen((args.RNAfold_exe if args.RNAfold_exe!="d" else "RNAfold") +' --noPS < '+output_path+"/oligos.fa",
                                         shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
             if("not found" in out.decode('utf-8') or "not found" in err.decode('utf-8')):
                 EXIT(message=out.decode('utf-8')+"|"+err.decode('utf-8')+" within RNAfold subprocess")
@@ -359,8 +367,8 @@ def main():
             print("# WARNING: RIsearch_exe is not set. Binding energy information and OFF-TARGETS will not be reported.")
         else:
             self_eng = {}
-            out,err = subprocess.Popen((args.RIsearch2_exe if args.RIsearch2_exe!="d" else "risearch2.x")+' -c '+args.output+"/oligos.fa -o "+args.output+"/oligos.suf", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
-            out,err = subprocess.Popen((args.RIsearch2_exe if args.RIsearch2_exe!="d" else "risearch2.x")+' -q '+args.output+"/oligos.fa -i "+args.output+"/oligos.suf -t 1 -s "+str(min(oligo_range)),
+            out,err = subprocess.Popen((args.RIsearch2_exe if args.RIsearch2_exe!="d" else "risearch2.x")+' -c '+output_path+"/oligos.fa -o "+output_path+"/oligos.suf", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
+            out,err = subprocess.Popen((args.RIsearch2_exe if args.RIsearch2_exe!="d" else "risearch2.x")+' -q '+output_path+"/oligos.fa -i "+output_path+"/oligos.suf -t 1 -s "+str(min(oligo_range)),
                                 shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
             print("# Analyzing Emins")
             min_Emin = 0
@@ -383,37 +391,50 @@ def main():
                 print("# WARNING: Off-target transcripts are not given. OFF-TARGETS will not be reported.")
             else:
                 print("# RUNning off-targets")
-                out,err = subprocess.Popen((args.RIsearch2_exe if args.RIsearch2_exe!="d" else "risearch2.x")+' -c '+args.output+"/oligos.fa -o "+args.output+"/oligos.suf", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
-                out,err = subprocess.Popen((args.RIsearch2_exe if args.RIsearch2_exe!="d" else "risearch2.x")+' -q '+args.output+"/oligos.fa -t 1 -i "+args.OFFtargets+" -s "+str(round(0.75*min(oligo_range)))+" -e "+str(min(min_Emin*0.5, -25)),
-                    shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
+
+                suffile = args.OFFtargetsSUF
+                if suffile==None:
+                    if not os.path.isfile(args.OFFtargets):
+                        EXIT(message=args.OFFtargets+" is not reachable!")
+                    elif args.OFFtargets.endswith("suf"):
+                        EXIT(message=args.OFFtargets+" is not a .fa, .fa.gz, .FASTA, .FASTA.gz file.")
+                    out,err = subprocess.Popen((args.RIsearch2_exe if args.RIsearch2_exe!="d" else "risearch2.x")+' -c '+args.OFFtargets+" -o "+output_path+"/OFFtargets.suf",
+                                shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
+                    suffile = output_path+"/OFFtargets.suf"
+                    if not os.path.isfile(output_path+"/OFFtargets.suf"):
+                        EXIT(message=err.decode('utf-8')+"\n Above problem in RIsearch2 off-target index generation")
+                out,err = subprocess.Popen((args.RIsearch2_exe if args.RIsearch2_exe!="d" else "risearch2.x")+' -q '+output_path+"/oligos.fa -t 1 -i "+suffile+
+                                            " -s "+str(round(0.75*min(oligo_range)))+" -e "+str(min(min_Emin*0.5, -25)),
+                            shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
                 t_c = 0
                 for oligo_id in oligos.keys():
                     if t_c%10 == 0:
                         sys.stdout.write(str(round((100.0*t_c)/len(oligos)))+" percent complete  \r")
                     t_c+=1
-                    with gzip.open("risearch_"+oligo_id+".out.gz") as self_int:
+
+                    if not os.path.isfile(output_path+"/risearch_"+oligo_id+".out.gz"):
+                        EXIT(message=err.decode('utf-8')+"\n Above problem in RIsearch2 off-target prediction")
+                    with gzip.open(output_path+"/risearch_"+oligo_id+".out.gz") as self_int:
                         oligos[oligo_id].add_offs(self_int.readlines())
 
-        ########## STILL HERE
-        
         # oligos bed
-        with open(args.output+"/oligos.bed",'w') as out_f:
+        with open(output_path+"/oligos.bed",'w') as out_f:
             for oligo in oligos.values():
                 out_f.write('\t'.join([oligo.targetTX,str(oligo.startPos),str(oligo.startPos+oligo.l),oligo.id])+'\n')
 
 
         # oligos gff
-        with open(args.output+"/oligos.gff3",'w') as out_f:
+        with open(output_path+"/oligos.gff3",'w') as out_f:
             out_f.write("##gff-version 3\n")
             for oligo in oligos.values():
                 out_f.write('\t'.join([oligo.targetTX,'CUSTOM','oligo',str(oligo.startPos+1),str(oligo.startPos+oligo.l),'.','-','.',
                             ';'.join(['ID='+oligo.id,'score='+str(oligo.score),'seq='+oligo.seq,
                             'gc_content='+str(round(oligo.GC,2)),'mfe='+str(oligo.MFE),'structure='+oligo.structure,
                             'bp_per='+("NA" if oligo.BPper=="NA" else str(round(oligo.BPper,2))),'eng_min='+("NA" if oligo.Emin=="NA" else str(round(oligo.Emin,1))),
-                            'no_of_OFFS='+("None" if args.no_OFF_search else str(len(oligo.offs)))]+[(k+'='+str(v[0])+"-reads_"+str(v[1])+"-pc") for k,v in oligo.dep_pot.items()])])+'\n')
+                            'no_of_OFFS='+("NA" if (args.OFFtargets==None and args.OFFtargetsSUF==None) else str(len(oligo.offs)))]+[(k+'='+str(v[0])+"-reads_"+str(v[1])+"-pc") for k,v in oligo.dep_pot.items()])])+'\n')
 
         # oligos CSV
-        with open(args.output+"/oligos.csv",'w') as out_f:
+        with open(output_path+"/oligos.csv",'w') as out_f:
             out_f.write("# Ribo-ODDR "+__version__+" oligo output file\n")
             samples = [k for k,v in oligo.dep_pot.items()]
 
@@ -422,14 +443,17 @@ def main():
                 avg_dep_per = round((sum([oligo.dep_pot[k][1] for k in samples]) / float(len(samples))) , 2)
                 out_f.write(','.join([oligo.id, str(oligo.l), oligo.seq,
                                         ('"'+oligo.targetTX+':'+str(oligo.startPos+1)+'-'+str(oligo.startPos+oligo.l)+'"'),
-                                        str(avg_dep_per), str(oligo.score), str(round(oligo.GC,2)), str(oligo.MFE), oligo.structure, str(round(oligo.BPper,2)), str(round(oligo.Emin,1)),
-                                        ("None" if args.no_OFF_search else str(len(oligo.offs))),
+                                        str(avg_dep_per), str(oligo.score), str(round(oligo.GC,2)),
+                                        str(oligo.MFE), oligo.structure,
+                                        ("NA" if oligo.BPper=="NA" else str(round(oligo.BPper,2))),
+                                        ("NA" if oligo.Emin=="NA" else str(round(oligo.Emin,1))),
+                                        ("None" if (args.OFFtargets==None and args.OFFtargetsSUF==None) else str(len(oligo.offs))),
                                         ('"'+';'.join(list(set([off.split("\t")[3].replace('"','_') for off in oligo.offs])))+'"')]+
                                      [('"'+str(oligo.dep_pot[k][0])+"-reads_"+str(oligo.dep_pot[k][1])+"-pc"+'"') for k in samples])+'\n')
 
         # oligos off
-        if args.no_OFF_search==False:
-            with open(args.output+"/oligos_offtargets.txt",'w') as out_f:
+        if (args.OFFtargets!=None or args.OFFtargetsSUF!=None):
+            with open(output_path+"/oligos_offtargets.txt",'w') as out_f:
                 for oligo in oligos.values():
                     if len(oligo.offs)>0:
                         out_f.write(''.join([off for off in oligo.offs])+'\n')
