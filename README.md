@@ -1,6 +1,6 @@
 # _Ribo-ODDR_
 
-### _Ribo_-seq focused _O_ligo _D_esign pipeline to _D_eplete _R_ibosomal RNA fragments
+### Ribo-seq focused (O)ligo (D)esign pipeline to (D)eplete (R)ibosomal RNA fragments
 
 ###### v0.9 , peer review release
 ---
@@ -13,23 +13,46 @@ The software consists of two parts, ''**_Ribo-ODDR_**'' and ''**_Ribo-ODDR_:**_o
 
 ---
 #### Prerequisites for "**_Ribo-ODDR_**" pipeline
-**_Ribo-ODDR_** does NOT pre-process Ribo-seq reads coming from pilot experiments. If adapter trimming and size selection marker cleaning is required for generated data, we suggest using [cutadapt](https://cutadapt.readthedocs.io) tool for such purposes.
+**_Ribo-ODDR_** does NOT pre-process Ribo-seq reads coming from pilot experiments. If adapter trimming and size selection marker cleaning is required for generated data, we suggest using the [cutadapt](https://cutadapt.readthedocs.io) tool for such purposes.
 * [**Python3**](https://www.python.org/) (>3.0)
   * With [**Biopython**](https://biopython.org/), [**pysam**](https://pysam.readthedocs.io) libraries installed
 * [**TopHat2**](https://ccb.jhu.edu/software/tophat/index.shtml) & [**Bowtie2**](https://sourceforge.net/projects/bowtie-bio/files/bowtie2/) & [**samtools**](http://www.htslib.org/doc/samtools.html) (optional) : The pipeline will use them to identify rRNA fragments, by aligning pre-processed Ribo-seq data to given rRNA sequences. However, one can use any other aligner and feed the alignment files (_BAM_ files) to the pipeline instead. Note that preprocessed reads from pilot experiments must be aligned to the same rRNA sequences that is passed to the _Ribo-ODDR_ pipeline and BAM files must be already indexed as (_XXX.bam.bai_).
-* [**Vienna RNA Package**](https://www.tbi.univie.ac.at/RNA/) : (optional) RNA folding prediction tool. The pipeline will run the **RNAfold** program as a sub-process if possible.
+* [**Vienna RNA Package - RNAfold**](https://www.tbi.univie.ac.at/RNA/) : (optional) RNA folding prediction tool. The pipeline will run the **RNAfold** program as a sub-process if possible.
 * [**RIsearch2**](https://rth.dk/resources/risearch/) (mandatory for off-target predictions and "_cross-species optimization mode_") : RNA-RNA interaction prediction tool used for oligo-target interaction predictions.
 
 #### How to run "**_Ribo-ODDR_**" pipeline?
-asdasfasg
-    asdasd
+There are two modes for Ribo-ODDR, "_cross species optimization_" and" _novel oligo design_". Both modes can be run using the same **Ribo-ODDR.py** script.
+
+Please run the following code to get help on the arguments you can pass to this script.
+
+    src/Ribo-ODDR.py -h
+
+To optimize oligos from one organism for Ribo-seq in another organism, _cross species optimization_ mode should be used. Note that this mode requires the [RIsearch2](https://rth.dk/resources/risearch/) program to be pre-installed. Below is an example code on how you can run _Ribo-ODDR_ in this mode (passing "_--RIsearch2_exe d_" argument assumes that RIsearch2 is available by default).
+
+######  _cross species optimization_
+    src/Ribo-ODDR.py -r example_data/mouse_rRNAs.fa -o example_data/ -op example_data/human_oligos.fa --RIsearch2_exe d
+
+
+######  _novel oligo design_
+In a simple case, if you already have the bam files ready for sample data-rRNA alignments. You can run this mode as follows. Note that "_mouse_sample_1_" and "_mouse_sample_2_" will be used as sample labels.
+
+    src/Ribo-ODDR.py -r example_data/mouse_rRNAs.fa -o example_data/ -ap ./ -as .bam -s mouse_sample_1 mouse_sample_2
+
+If you want to use the trimmed-read files instead, you will have to use a code similar to the one below. The code below assumes that [TopHat2](https://ccb.jhu.edu/software/tophat/index.shtml), [Bowtie2](https://sourceforge.net/projects/bowtie-bio/files/bowtie2/) and [samtools](http://www.htslib.org/doc/samtools.html) are already installed. You can also provide the path to their executables instead of passing "_d_" for default.
+
+    src/Ribo-ODDR.py -r example_data/mouse_rRNAs.fa -o example_data/ -fp /PATH/PREFIX/TO/YOUR/FASTQ/FILES -as .fastq --bowtie2-build_exe d --samtools_exe d --tophat_exe -s mouse_sample_1 mouse_sample_2
+
+
+######  _computing more features_
+To compute self-folding characteristics, binding energy and off-target predictions for designed oligos you need the [RNAfold](https://www.tbi.univie.ac.at/RNA/) and [RIsearch2](https://rth.dk/resources/risearch/) pre-installed. When they are available by default, you can pass the "_--RIsearch2_exe d --RNAfold_exe d_" arguments or provide the path to their executables instead of "_d_". Note that, for off-target predictions, you also need to provide protein coding transcipt sequences by passing the "--OFFtargets /PATH/TO/FASTA" argument.
+
 ---
 #### Prerequisites for "_**Ribo-ODDR: oligo-selector**_"
 * [**R & RStudio**](https://rstudio.com/)
   * With [**shiny**](https://shiny.rstudio.com/), [**shinythemes**](https://rstudio.github.io/shinythemes/), [**DT**](https://rstudio.github.io/DT/), [**htmltools**](https://cran.r-project.org/web/packages/htmltools/index.html), [**ggplot2**](https://ggplot2.tidyverse.org/) libraries
 
 #### How to run  "_**Ribo-ODDR: oligo-selector**_"
-asfsafsaf
-    asdasd
+It is provided as an R script, which you can open in RStudio and run easily if you have the packages installed. The Shiny app self-contains the Instructions on how to navigate yourself through the app.
+
 ---
 Ribo-ODDR was created by [Faller Lab]()

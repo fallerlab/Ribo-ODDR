@@ -289,6 +289,8 @@ def main():
         out,err = subprocess.Popen(risearch_exe+' -q '+o2o_file+" -i "+output_path+"/rRNA_seqs.suf -t 1 -s "+str(ol_l_min/2),
                                     shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
         for ol_id, ol_seq in ols2opt.items():
+            if not os.path.isfile("risearch_"+ol_id+".out.gz"):
+                EXIT(message=err.decode("utf-8"))
             with gzip.open("risearch_"+ol_id+".out.gz") as self_int:
                 if not os.path.isfile("risearch_"+ol_id+".out.gz"):
                     EXIT(message=err.decode("utf-8"))
