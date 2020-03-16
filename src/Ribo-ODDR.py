@@ -37,7 +37,7 @@ from Bio import SeqIO, Seq, SeqRecord
 from Bio.Alphabet import generic_dna, generic_rna
 from shutil import copyfile
 
-__version__ = "0.9"
+__version__ = "1.0"
 __author__ = "Ferhat Alkan <f.alkan@nki.nl>"
 
 ## GLOBAL DECLARATIONS ##
@@ -94,12 +94,12 @@ def get_parser():
     #parser.add_argument('--DNA_DNA_params', help='<Required> Path to DNA-DNA energy parameters. (misc/dna_mathews2004.par file from ViennaRNA package installation folder)', required=True)
     return parser
 
-# Parse fasta, return dic
+# Parse fasta, return dic, make sure it's dna sequence
 def get_seq(fa_file):
     TX_dic = {}
     with f_open(fa_file) as handle:
         for record in SeqIO.parse(handle, "fasta") :
-            TX_dic[record.id] = str(record.seq)
+            TX_dic[record.id] = str(record.seq).replace("U","T").replace("u","t")
     return(TX_dic)
 
 # Parse BAM alignment file, return positional depths (number of reads for every position)
@@ -153,7 +153,8 @@ class Oligo:
     def add_offs(self, off_list):
         for line in off_list:
             cols = line.decode('utf-8').rstrip().split('\t')
-            if cols[6]=='+' and float(cols[7]) < min(self.Emin*0.5, -25):
+            # Filter negative strand and ofss with high energy
+            if cols[6]=='+' and float(cols[7]) < (self.Emin*0.5):
                 self.offs.add(line.decode('utf-8'))
 
 # Iterate over samples and find oligos that can deplete rRNAs in all
@@ -395,7 +396,7 @@ def main():
         else:
             self_eng = {}
             out,err = subprocess.Popen(risearch_exe+' -c '+output_path+"/oligos.fa -o "+output_path+"/oligos.suf", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
-            out,err = subprocess.Popen(risearch_exe+' -q '+output_path+"/oligos.fa -i "+output_path+"/oligos.suf -t 1 -s "+str(min(oligo_range)),
+            out,err = subprocess.Popen(risearch_exe+' -q '+output_path+"/oligos.fa -i "+output_path+"/oligos.suf -e 0 -t 1 -s "+str(min(oligo_range)),
                                 shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
             print("# Analyzing Emins")
             min_Emin = 0
@@ -430,8 +431,10 @@ def main():
                     suffile = output_path+"/OFFtargets.suf"
                     if not os.path.isfile(output_path+"/OFFtargets.suf"):
                         EXIT(message=err.decode('utf-8')+"\n Above problem in RIsearch2 off-target index generation")
+
+                # max energy -20, but if no oligo has BE > -40 there is no need to predict with -e -20. that's why there is max option here
                 out,err = subprocess.Popen(risearch_exe+' -q '+output_path+"/oligos.fa -t 1 -i "+suffile+
-                                            " -s "+str(round(0.75*min(oligo_range)))+" -e "+str(min(min_Emin*0.5, -25)),
+                                            " -s "+str(min(round(0.75*min(oligo_range)), 10))+" -e "+str(max(min_Emin*0.5, -20)),
                             shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
                 t_c = 0
                 for oligo_id in oligos.keys():
@@ -475,7 +478,7 @@ def main():
                                         ("NA" if oligo.BPper=="NA" else str(round(oligo.BPper,2))),
                                         ("NA" if oligo.Emin=="NA" else str(round(oligo.Emin,1))),
                                         ("None" if (OFFtargets==None and OFFtargetsSUF==None) else str(len(oligo.offs))),
-                                        ('"'+';'.join(list(set([off.split("\t")[3].replace('"','_') for off in oligo.offs])))+'"')]+
+                                        ('"'+';'.join(list(set([off.split("\t")[3].replace('"','_') for off in oligo.offs])))+'"') if len(oligo.offs)<10 else '"More than 10. See oligos_offtargets.txt file for details."']+
                                      [('"'+str(oligo.dep_pot[k][0])+"-reads_"+str(oligo.dep_pot[k][1])+"-pc"+'"') for k in samples])+'\n')
 
         # oligos off

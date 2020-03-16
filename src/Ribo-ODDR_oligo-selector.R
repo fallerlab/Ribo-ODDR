@@ -62,10 +62,14 @@ get_df_from_csv <- function(rawfile){
   }
   tmp$dep_reads <- rowMeans(reads)
   #tmp$avg_dep_per <- round(rowMeans(rperc),1)
-  for (i in 1:length(samples)){
-    sample<-samples[i]
-    tmp[[paste("S", as.character(i), "_", sample, "_reads_info", sep="")]] <- reads[,sample]
-    tmp[[paste("S", as.character(i), "_", sample, "_rrna_per_info", sep="")]] <- rperc[,sample]
+  if (length(samples)==1){
+    tmp[[paste("S1_", samples, "_reads_info", sep="")]] <- reads[,1]
+  } else {
+    for (i in 1:length(samples)){
+      sample<-samples[i]
+      tmp[[paste("S", as.character(i), "_", sample, "_reads_info", sep="")]] <- reads[,sample]
+      tmp[[paste("S", as.character(i), "_", sample, "_rrna_per_info", sep="")]] <- rperc[,sample]
+    }
   }
   return(tmp)
 }
