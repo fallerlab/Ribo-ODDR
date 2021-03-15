@@ -47,9 +47,9 @@ get_df_from_csv <- function(rawfile){
                     BPper=round(as.numeric(raw_df$bp_per),2), 
                     foldedStructure=raw_df$structure,
                     off=as.numeric(raw_df$no_of_OFFs),
-                    target=sapply(raw_df$target,FUN=function(x){return(strsplit(x,":")[[1]][1])}),
-                    spos=as.numeric(sapply(raw_df$target,FUN=function(x){return(strsplit(strsplit(x,":")[[1]][2], "-")[[1]][1])})),
-                    epos=as.numeric(sapply(raw_df$target,FUN=function(x){return(strsplit(strsplit(x,":")[[1]][2], "-")[[1]][2])})),
+                    target=sapply(raw_df$target,FUN=function(x){return(strsplit(x,":(?=[^:]+$)",perl=TRUE)[[1]][1])}),
+                    spos=as.numeric(sapply(raw_df$target,FUN=function(x){return(strsplit(strsplit(x,":(?=[^:]+$)",perl=TRUE)[[1]][2], "-")[[1]][1])})),
+                    epos=as.numeric(sapply(raw_df$target,FUN=function(x){return(strsplit(strsplit(x,":(?=[^:]+$)",perl=TRUE)[[1]][2], "-")[[1]][2])})),
                     stringsAsFactors = FALSE)
   rownames(tmp)<-tmp$oligoID
   samples <- colnames(raw_df)[14:dim(raw_df)[2]]
@@ -68,8 +68,8 @@ get_df_from_csv <- function(rawfile){
   } else {
     for (i in 1:length(samples)){
       sample<-samples[i]
-      tmp[[paste("S", as.character(i), "_", sample, "_reads_info", sep="")]] <- reads[,sample]
-      tmp[[paste("S", as.character(i), "_", sample, "_rrna_per_info", sep="")]] <- rperc[,sample]
+      tmp[[paste("S", sprintf(paste0("%0",nchar(as.character(length(samples))),"d"),i), "_", sample, "_reads_info", sep="")]] <- reads[,sample]
+      tmp[[paste("S", sprintf(paste0("%0",nchar(as.character(length(samples))),"d"),i), "_", sample, "_rrna_per_info", sep="")]] <- rperc[,sample]
     }
   }
   return(tmp)
@@ -153,7 +153,7 @@ ui <- fluidPage(
                         <br><br>
                         If you are using this tool, do not forget to cite our publication below.
                         <hr>
-                        <i>Publication Citation comes here.</i>
+                        <i><a href="https://doi.org/10.1093/bioinformatics/btab171" target="_blank">Ferhat Alkan, Joana Silva, Eric Pintó Barberà, William J Faller, Ribo-ODDR: Oligo design pipeline for experiment-specific rRNA depletion in Ribo-seq, Bioinformatics, 2021, btab171.</a></i>
                         <br>
                         <hr>Click <a href="https://github.com/ferhatalkan/Ribo-ODDR" target="_blank">here</a> 
                             to access the source code of <i>Ribo-ODDR</i> pipeline.
@@ -190,7 +190,7 @@ ui <- fluidPage(
                         <hr>
                         If you are using <i>Ribo-ODDR</i>, do not forget to cite the publication below.
                         <hr>
-                        <i>Publication Citation comes here.</i>
+                        <i><a href="https://doi.org/10.1093/bioinformatics/btab171" target="_blank">Ferhat Alkan, Joana Silva, Eric Pintó Barberà, William J Faller, Ribo-ODDR: Oligo design pipeline for experiment-specific rRNA depletion in Ribo-seq, Bioinformatics, 2021, btab171.</a></i>
                         <br>
                         <hr>Click <a href="https://github.com/ferhatalkan/Ribo-ODDR" target="_blank">here</a> 
                             to access the source code of <i>Ribo-ODDR</i> pipeline.
@@ -266,7 +266,7 @@ ui <- fluidPage(
                 <hr>
                 We hope that you find it useful. If you are interested in <i>Ribo-ODDR</i> publication, please see below.
                 <hr>
-                <i>Publication Citation comes here.</i>
+                <i><a href="https://doi.org/10.1093/bioinformatics/btab171" target="_blank">Ferhat Alkan, Joana Silva, Eric Pintó Barberà, William J Faller, Ribo-ODDR: Oligo design pipeline for experiment-specific rRNA depletion in Ribo-seq, Bioinformatics, 2021, btab171.</a></i>
                 <hr>Click <a href="https://github.com/ferhatalkan/Ribo-ODDR" target="_blank">here</a> 
                             to access the source code of <i>Ribo-ODDR</i> pipeline.
                 <hr><small>Created by <a href="https://www.fallerlab.com/" target="_blank">Faller Lab</a></small>
