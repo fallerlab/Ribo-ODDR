@@ -2,7 +2,7 @@
 
 ### Ribo-seq focused (O)ligo (D)esign pipeline to (D)eplete (R)ibosomal RNA fragments
 
-###### v0.9 , peer review release
+###### v1.0 , Publicationm Release
 ---
 
 The software consists of two parts, ''**_Ribo-ODDR_**'' and ''**_Ribo-ODDR_:**_oligo-selector_''
@@ -53,5 +53,9 @@ To compute self-folding characteristics, binding energy and off-target predictio
 #### How to run  "_**Ribo-ODDR: oligo-selector**_"
 It is provided as an R script, which you can open in RStudio and run easily if you have the packages installed. The Shiny app self-contains the Instructions on how to navigate yourself through the app.
 
+#### Publication link
+If you use _Ribo-ODDR_ to optimize your Ribo-seq experiments, do not forget to cite our publication below.
+[Ferhat Alkan, Joana Silva, Eric Pintó Barberà, William J Faller, Ribo-ODDR: Oligo design pipeline for experiment-specific rRNA depletion in ribo-seq, Bioinformatics, 2021, btab171.](https://doi.org/10.1093/bioinformatics/btab171)
+
 ---
-Ribo-ODDR was created by [Faller Lab]()
+Ribo-ODDR was created by [Faller Lab](https://www.fallerlab.com/)
