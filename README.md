@@ -2,7 +2,7 @@
 
 ### Ribo-seq focused (O)ligo (D)esign pipeline to (D)eplete (R)ibosomal RNA fragments
 
-###### v1.0 , Publicationm Release
+###### v1.0 , Publication Release
 ---
 
 The software consists of two parts, ''**_Ribo-ODDR_**'' and ''**_Ribo-ODDR_:**_oligo-selector_''
@@ -15,7 +15,7 @@ The software consists of two parts, ''**_Ribo-ODDR_**'' and ''**_Ribo-ODDR_:**_o
 #### Prerequisites for "**_Ribo-ODDR_**" pipeline
 **_Ribo-ODDR_** does NOT pre-process Ribo-seq reads coming from pilot experiments. If adapter trimming and size selection marker cleaning is required for generated data, we suggest using the [cutadapt](https://cutadapt.readthedocs.io) tool for such purposes.
 * [**Python3**](https://www.python.org/) (>3.0)
-  * With [**Biopython**](https://biopython.org/), [**pysam**](https://pysam.readthedocs.io) libraries installed
+  * With [**Biopython(v1.76)**](https://biopython.org/), [**pysam**](https://pysam.readthedocs.io) libraries installed
 * [**RIsearch2**](https://rth.dk/resources/risearch/) : RNA-RNA interaction prediction tool used for oligo-target interaction predictions.
 * [**TopHat2**](https://ccb.jhu.edu/software/tophat/index.shtml) & [**Bowtie2**](https://sourceforge.net/projects/bowtie-bio/files/bowtie2/) & [**samtools**](http://www.htslib.org/doc/samtools.html) (optional) : The pipeline will use them to identify rRNA fragments, by aligning pre-processed Ribo-seq data to given rRNA sequences. However, one can use any other aligner and feed the alignment files (_BAM_ files) to the pipeline instead. Note that preprocessed reads from pilot experiments must be aligned to the same rRNA sequences that is passed to the _Ribo-ODDR_ pipeline and BAM files must be already indexed as (_XXX.bam.bai_).
 * [**Vienna RNA Package - RNAfold**](https://www.tbi.univie.ac.at/RNA/) : (optional) RNA folding prediction tool. The pipeline will run the **RNAfold** program as a sub-process if possible.
@@ -27,7 +27,7 @@ Please run the following code to get help on the arguments you can pass to this 
 
     src/Ribo-ODDR.py -h
 
-To optimize oligos from one organism for Ribo-seq in another organism, _cross species optimization_ mode should be used.  Before running this mode, please make sure the [RIsearch2](https://rth.dk/resources/risearch/) program is pre-installed. Below is an example code on how you can run _Ribo-ODDR_ in this mode (passing "_--RIsearch2_exe d_" argument assumes that RIsearch2 is available by default, 'risearc2.x' command being callable.).
+To optimize oligos from one organism for Ribo-seq in another organism, _cross species optimization_ mode should be used.  Before running this mode, please make sure the [RIsearch2](https://rth.dk/resources/risearch/) program is pre-installed. Below is an example code on how you can run _Ribo-ODDR_ in this mode (passing "_--RIsearch2_exe d_" argument assumes that RIsearch2 is available by default, 'risearch2.x' command being callable.).
 
 ######  _cross species optimization_
     src/Ribo-ODDR.py -r example_data/mouse_rRNAs.fa -o example_data/ -op example_data/human_oligos.fa --RIsearch2_exe d
