@@ -6,7 +6,7 @@
 #  ---     experiment-specific Depletion of Ribosomal RNAs     ---
 #
 #  Oligo-design script
-#  Version 1.0 (See the ChangeLog.md file for changes.)
+#  Version 1.1 (See the ChangeLog.md file for changes.)
 #
 #  Copyright 2019   Faller Lab <fallerlab@gmail.com>
 #                   Ferhat Alkan <f.alkan@nki.nl>
@@ -32,12 +32,12 @@
 #  If not, see <http://www.gnu.org/licenses/>.
 ################################################################################
 
-import sys, gzip, pysam, os, argparse, itertools, subprocess, time
+import sys, gzip, pysam, os, argparse, subprocess #, itertools, time
 from Bio import SeqIO, Seq, SeqRecord
 from Bio.Alphabet import generic_dna, generic_rna
 from shutil import copyfile
 
-__version__ = "1.0"
+__version__ = "1.1"
 __author__ = "Ferhat Alkan <f.alkan@nki.nl>"
 
 ## GLOBAL DECLARATIONS ##
@@ -97,6 +97,8 @@ def get_parser():
     advanced = parser.add_argument_group("Advanced","Advanced options.")
     advanced.add_argument('-pt','--rrna_perc_threshold', type=float, metavar='<float>', default=5.0, help="Filtering threshold (rRNA depletion percentage), applied within oligo score calculation. (default=5)")
     advanced.add_argument('-st','--score_threshold', type=float, metavar='<float>',  default=0.25, help="Score threshold. Minimum ratio of samples that the oligo can deplete at least the selected percentage of rRNAs within. (default:0.25)")
+    advanced.add_argument('--oligo_potentials', metavar='<oligo sequence>', nargs='+', default=[], help="Pass oligo sequences (with space in between) for calculating their potential in given data.")
+    
     # advanced.add_argument('--no_OFF_search', action='store_true', help='Do not look for offtargets!')
     # parser.add_argument('--DNA_DNA_params', help='<Required> Path to DNA-DNA energy parameters. (misc/dna_mathews2004.par file from ViennaRNA package installation folder)', required=True)
     return parser
@@ -168,7 +170,7 @@ class Oligo:
 
 
 # Iterate over samples and find oligos that can deplete rRNAs in all
-def get_oligos_with_reads_start_end(sample_cutoff=0.25, rrna_cutoff=5, oligo_range=range(25,30), forceALL=20, risearch="risearch2.x", rRNAs_suf="./rRNAs.suf", working_dir="./"):
+def get_oligos_with_reads_start_end(sample_cutoff=0.25, rrna_cutoff=5, oligo_range=range(25,30), forceALL=20, risearch="risearch2.x", rRNAs_suf="./rRNAs.suf", working_dir="./", selected_oligos=[]):
     sample_size = len(ALL_READS_START_END.keys())
     TXspec_oligos = {}
     o_l = 0
@@ -184,6 +186,7 @@ def get_oligos_with_reads_start_end(sample_cutoff=0.25, rrna_cutoff=5, oligo_ran
     RIs2_dir = os.path.abspath(working_dir+"/RIsearch2_suboptimal_oligobind_results/")
     for l in oligo_range:
         print("# Running RIsearch2 for length="+str(l)+" oligos")
+        run_RIsearch = False
         done_seqs=set()
         min_aimed_pair = min(10, (l-int(l/3)))
         with open(RIs2_dir+"/all_length_"+str(l)+"_oligos_for_RIsearch2.fa","w") as outf:
@@ -192,11 +195,16 @@ def get_oligos_with_reads_start_end(sample_cutoff=0.25, rrna_cutoff=5, oligo_ran
                 # iterating over positions, not oligos
                 for i in range(0,TX_l+1-l):
                     oligo_seq = str(Seq.Seq(TX_seq[i:i+l], generic_dna).reverse_complement()).replace('T','U')
-                    if oligo_seq not in done_seqs:
+                    
+                    # There is a HOOK below FOR calculating given oligo potentials
+                    if (oligo_seq not in done_seqs) and ((len(selected_oligos)==0) or (oligo_seq.upper() in selected_oligos)): # if selected oligos given-calculate potentials for them
                         outf.write(">"+oligo_seq+"\n"+oligo_seq+"\n")
                         done_seqs.add(oligo_seq)
+                        run_RIsearch = True
+                        
         # Run RIsearch allowing GUs
-        out,err = subprocess.Popen(risearch+' -q '+os.path.abspath(RIs2_dir+"/all_length_"+str(l)+"_oligos_for_RIsearch2.fa")+" -i "+os.path.abspath(rRNAs_suf)+" -l 0 -e -10 -s "+str(min_aimed_pair)+" -p2",
+        if run_RIsearch:
+            out,err = subprocess.Popen(risearch+' -q '+os.path.abspath(RIs2_dir+"/all_length_"+str(l)+"_oligos_for_RIsearch2.fa")+" -i "+os.path.abspath(rRNAs_suf)+" -l 0 -e -10 -s "+str(min_aimed_pair)+" -p2",
                                                 shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=RIs2_dir).communicate()
         if(err.decode('utf-8')!=""):
             EXIT("# There is a potential error in RIsearch2 run:", err.decode('utf-8'))
@@ -214,6 +222,12 @@ def get_oligos_with_reads_start_end(sample_cutoff=0.25, rrna_cutoff=5, oligo_ran
             for i in range(0,TX_l+1-l):
                 if i%100 == 1:
                     print("## Designing for position", i, "("+str(int(100*(i/TX_l)))+"% finished)    ",end='\r')
+                          
+                # HOOK FOR calculating given oligo potentials
+                oligo_seq = str(Seq.Seq(TX_seq[i:i+l], generic_dna).reverse_complement()).replace('T','U')
+                if (len(selected_oligos)>0) and (oligo_seq.upper() not in selected_oligos): # if selected oligos are given -- ignore others
+                    continue
+                
                 deplete_potential_summary = {}
                 # calculate potential in each sample
                 for sample in ALL_READS_START_END.keys():
@@ -223,10 +237,10 @@ def get_oligos_with_reads_start_end(sample_cutoff=0.25, rrna_cutoff=5, oligo_ran
                     added_pos_pairs = set()
 
                     # Heuristic part to compute deplete potential
-                    # Depleteable Reads must have at least min(10,l-int(l/3)) nt pairing with designed oligo
-                    # Depleteable Reads can have max(10,int(l/3)) unpaired nts with designed oligo
-                    max_allowed_unpair = max(10, int(l/3))
-                    min_aimed_pair = min(10, (l-int(l/3)))
+                    # Depleteable Reads must have at least max(10,l-int(l/3)) nt pairing with designed oligo
+                    # Depleteable Reads can have min(10,int(l/3)) unpaired nts with designed oligo
+                    max_allowed_unpair = min(10, int(l/3))
+                    min_aimed_pair = max(10, (l-int(l/3)))
 
                     # Oligo is designed perfect-complementary to the position starting at i for a length of l
                     # thats why we allow the read-to-deplete to start leftmost at (i-max_allowed_unpair)
@@ -256,7 +270,7 @@ def get_oligos_with_reads_start_end(sample_cutoff=0.25, rrna_cutoff=5, oligo_ran
                             rt_os, rt_osp, rt_oep, rt_tarTX, rt_tar_sp, rt_tar_ep, rt_tar_str, rt_energy, rt_pair = line.rstrip().split("\t")
                             if rt_tar_str=="+": # for every "+" strand interaction
                                 out_unp = int(rt_osp)-1
-                                out_unp += int(rt_oep)-1 # number of oligo unpaired bases outside the predicted interaction
+                                out_unp += (l-int(rt_oep)) # number of oligo unpaired bases outside the predicted interaction
                                 in_p = (int(rt_oep)-int(rt_osp))+1 # number of oligo paired bases inside the predicted interaction
 
                                 # iterating over positions where depletable reads start
@@ -316,8 +330,11 @@ def get_oligos_with_reads_start_end(sample_cutoff=0.25, rrna_cutoff=5, oligo_ran
 
                         if size_spec_add_l[ol] == forceALL:
                             break
-
-    print("## Designed", len(final_oligos), "oligos                           ", )
+                        
+    if len(selected_oligos)>0 :
+        print("## Calculated potentials for ", len(final_oligos), "oligos                       ")  
+    else:
+        print("## Designed", len(final_oligos), "oligos                           ")
     return(final_oligos,identical_oligos)
 
 # Main function for the pipeline, Use functional programming when necessary to simplify the code
@@ -386,6 +403,10 @@ def main():
         else:
             oligo_range = range(oligo_min, oligo_max+1)
     print('#Allowed lengths for oligo designs: ',str(oligo_range),' nts')
+          
+    if len(args.oligo_potentials)>0 :
+        print('#You have passed oligos to calculate potentials for. Please make sure oligo_range is valid for them! If not, they might be excluded.')
+        
 
     # STORE ALL OLIGOS HERE, KEEP TRACK OF IDENTICAL ONES
     oligos = {} # key is oligo id
@@ -473,7 +494,8 @@ def main():
         # oligos fasta
         oligos, identical_oligos = get_oligos_with_reads_start_end(sample_cutoff=args.score_threshold, rrna_cutoff=args.rrna_perc_threshold,
                                                                     oligo_range=oligo_range, forceALL=args.force_design,
-                                                                    risearch=risearch_exe, rRNAs_suf=rRNAs_suf, working_dir=output_path)
+                                                                    risearch=risearch_exe, rRNAs_suf=rRNAs_suf, working_dir=output_path,
+                                                                    selected_oligos=[seq.upper() for seq in args.oligo_potentials])
 
 
     if oligos != None:

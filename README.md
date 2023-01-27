@@ -2,7 +2,7 @@
 
 ### Ribo-seq focused (O)ligo (D)esign pipeline to (D)eplete (R)ibosomal RNA fragments
 
-###### v1.0 , Publication Release
+###### v1.1 
 ---
 
 The software consists of two parts, ''**_Ribo-ODDR_**'' and ''**_Ribo-ODDR_:**_oligo-selector_''
